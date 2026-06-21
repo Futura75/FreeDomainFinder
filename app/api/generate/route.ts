@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { callProvider, resolveSelection } from "@/lib/ai-server";
 
 export const runtime = "nodejs";
 
@@ -7,6 +8,33 @@ interface GenerateBody {
   count: number;
   exclusions?: string[];
   avoid?: string[];
+  provider?: string;
+  model?: string;
+}
+
+function buildSystemPrompt(count: number, exclusions: string[], avoid: string[]) {
+  const exclusionLine =
+    exclusions.length > 0
+      ? `Non usare queste parole come base: ${exclusions.join(", ")}.`
+      : "";
+
+  const avoidLine =
+    avoid.length > 0
+      ? `Sono già stati proposti questi nomi in round precedenti: ${avoid.join(
+          ", "
+        )}. Non ripeterli e proponi alternative completamente diverse per stile e approccio.`
+      : "";
+
+  return `Sei un assistente esperto di naming e brand. Genera ${count} idee di nome a dominio brevi, brandizzabili, memorabili e pronunciabili, ispirate al brief dell'utente.
+Regole:
+- Restituisci SOLO la parte prima del punto (il nome, senza TLD).
+- Niente spazi, niente accenti, niente punteggiatura oltre al trattino (-).
+- Lunghezza ideale 5-14 caratteri.
+- Varia lo stile: parole composte, fusioni, metafore, suggestive nonsense.
+- Evita marchi noti e termini generics già saturi.
+${exclusionLine}
+${avoidLine}
+Rispondi in JSON: {"names": ["nome1","nome2",...]} con esattamente ${count} elementi.`;
 }
 
 export async function POST(req: NextRequest) {
@@ -24,80 +52,52 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) {
+    const resolved = resolveSelection(body.provider, body.model);
+    if (!resolved) {
       return NextResponse.json(
         {
           error:
-            "GROQ_API_KEY non configurata. Copia .env.local.example in .env.local e inserisci la tua chiave (gratis su console.groq.com).",
+            "Nessun provider AI configurato. Imposta almeno una chiave in .env.local (es. GROQ_API_KEY) e riavvia il server. Vedi .env.local.example.",
         },
         { status: 500 }
       );
     }
 
-    const exclusionLine =
-      exclusions.length > 0
-        ? `Non usare queste parole come base: ${exclusions.join(", ")}.`
-        : "";
+    // Anthropic and some providers don't support response_format json_object.
+    // We still ask for JSON in the prompt; parsing tolerates prose-wrapped JSON.
+    const supportsJsonMode = resolved.provider.apiShape === "openai-chat";
 
-    const avoidLine =
-      avoid.length > 0
-        ? `Sono già stati proposti questi nomi in round precedenti: ${avoid.join(
-            ", "
-          )}. Non ripeterli e proponi alternative completamente diverse per stile e approccio.`
-        : "";
+    const systemPrompt = buildSystemPrompt(count, exclusions, avoid);
 
-    const systemPrompt = `Sei un assistente esperto di naming e brand. Genera ${count} idee di nome a dominio brevi, brandizzabili, memorabili e pronunciabili, ispirate al brief dell'utente.
-Regole:
-- Restituisci SOLO la parte prima del punto (il nome, senza TLD).
-- Niente spazi, niente accenti, niente punteggiatura oltre al trattino (-).
-- Lunghezza ideale 5-14 caratteri.
-- Varia lo stile: parole composte, fusioni, metafore, suggestive nonsense.
-- Evita marchi noti e termini generics già saturi.
-${exclusionLine}
-${avoidLine}
-Rispondi in JSON: {"names": ["nome1","nome2",...]} con esattamente ${count} elementi.`;
-
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
-        temperature: 0.9,
-        max_tokens: 800,
-        response_format: { type: "json_object" },
-        messages: [
+    let content: string;
+    try {
+      content = await callProvider(
+        resolved,
+        [
           { role: "system", content: systemPrompt },
           { role: "user", content: prompt },
         ],
-      }),
-    });
-
-    if (!res.ok) {
-      const txt = await res.text();
+        { temperature: 0.9, maxTokens: 1024, jsonMode: supportsJsonMode }
+      );
+    } catch (e) {
       return NextResponse.json(
-        { error: `Errore Groq (${res.status}): ${txt.slice(0, 300)}` },
+        { error: (e as Error).message },
         { status: 502 }
       );
     }
 
-    const data = await res.json();
-    const content = data?.choices?.[0]?.message?.content ?? "{}";
+    // Tolerant JSON extraction (model may wrap JSON in prose).
     let names: string[] = [];
     try {
-      const parsed = JSON.parse(content);
+      const match = content.match(/\{[\s\S]*\}/);
+      const parsed = JSON.parse(match ? match[0] : content);
       names = Array.isArray(parsed.names) ? parsed.names : [];
     } catch {
       names = [];
     }
 
-    // Build the avoid set (lowercased) to filter repeats.
     const avoidSet = new Set(avoid.map((n) => String(n).toLowerCase()));
 
-    // Sanitize: lowercase, strip dots/spaces, dedupe, drop avoid repeats, cap to count.
     const cleaned = names
       .map((n) =>
         String(n)
@@ -118,7 +118,11 @@ Rispondi in JSON: {"names": ["nome1","nome2",...]} con esattamente ${count} elem
       );
     }
 
-    return NextResponse.json({ names: unique });
+    return NextResponse.json({
+      names: unique,
+      provider: resolved.provider.id,
+      model: resolved.model,
+    });
   } catch (err) {
     return NextResponse.json(
       { error: `Errore interno: ${(err as Error).message}` },

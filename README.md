@@ -8,7 +8,7 @@ A local-first web app to check domain name availability and generate brandable a
 - Design system: **WhistleGuard** (blue/teal palette, Public Sans + JetBrains Mono fonts, Remix Icons)
 - Notifications: **SweetAlert2** (top-right toasts + completion popups, light/dark themed)
 - Availability check: **RDAP** (`rdap.org`) + **DNS-over-HTTPS** fallback (Cloudflare), client-side, no API keys
-- AI: **Groq** (`llama-3.3-70b-versatile`, free tier) via server-side API route
+- AI: multi-provider via server-side API route. Supported: **Groq**, **OpenAI**, **Anthropic**, **OpenRouter**, **OpenCode GO** (self-hosted OpenAI-compatible), **Together AI**, **Mistral**, **xAI (Grok)**, **Ollama** (local, no key). Keys live server-side in env; the client picks provider + model from the configured ones. The AI panel is disabled in the UI until at least one provider is correctly configured.
 
 ## Quick start
 
@@ -21,7 +21,7 @@ npm run dev
 
 Open http://localhost:3000
 
-> Without a Groq key, direct verification still works; only AI generation returns an error with instructions.
+> Without any AI provider configured, direct verification still works; the "Genera con AI" tab is disabled with a setup hint.
 
 ## Two modes
 
@@ -98,12 +98,15 @@ Full-width, fluid app: content adapts to the viewport width (no fixed `max-width
 app/
   layout.tsx              fonts + Remix Icons + globals
   page.tsx                main UI (client)
-  api/generate/route.ts   Groq proxy (hides the API key, dedupes vs avoid list)
+  api/generate/route.ts   AI generation (multi-provider, hides keys, dedupes vs avoid list)
+  api/ai/status/route.ts  reports configured providers/models to the client
 lib/
   tlds.ts                 normalization, parsing, default TLDs
   check.ts                RDAP + DoH, bounded concurrency pool
   notify.ts               SweetAlert2 helpers (toast/popup/confirm), themed
   session.ts              session file types, validation, download/read
+  ai-providers.ts         provider registry (metadata, models) — shared
+  ai-server.ts            server helpers (env, resolve selection, call provider)
 tailwind.config.ts        WhistleGuard tokens + dark mode
 ```
 

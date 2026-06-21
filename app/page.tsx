@@ -15,6 +15,7 @@ import {
   pool,
 } from "@/lib/check";
 import { setNotifyTheme, toast, popup, confirm } from "@/lib/notify";
+import { PROVIDERS } from "@/lib/ai-providers";
 import {
   SessionFile,
   SavedResultGroup,
@@ -35,6 +36,75 @@ function NewSearchButton({ onClick }: { onClick: () => void }) {
     >
       <i className="ri-refresh-line" /> Nuova ricerca
     </button>
+  );
+}
+
+interface ProviderStatusView {
+  id: string;
+  label: string;
+  configured: boolean;
+  models: { id: string; label: string }[];
+  defaultModel: string;
+}
+
+function ModelSelect({
+  providerId,
+  model,
+  providers,
+  onChange,
+}: {
+  providerId: string;
+  model: string;
+  providers: ProviderStatusView[];
+  onChange: (m: string) => void;
+}) {
+  const status = providers.find((p) => p.id === providerId);
+  const options = status && status.models.length > 0 ? status.models : null;
+  return (
+    <>
+      {options ? (
+        <select
+          value={model}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-9 px-2 rounded border border-border dark:border-darkborder bg-background dark:bg-darkbg text-sm"
+        >
+          {options.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.label}
+            </option>
+          ))}
+          {!options.some((m) => m.id === model) && model && (
+            <option value={model}>{model}</option>
+          )}
+        </select>
+      ) : (
+        <input
+          value={model}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="es. llama3.1"
+          className="h-9 px-2 rounded border border-border dark:border-darkborder bg-background dark:bg-darkbg text-sm font-mono"
+        />
+      )}
+    </>
+  );
+}
+
+function AiNotConfigured({ notice }: { notice: string | null }) {
+  return (
+    <div className="rounded-md border border-warning/40 bg-warning/10 p-5 text-sm">
+      <h3 className="text-base font-semibold flex items-center gap-2 mb-2">
+        <i className="ri-error-warning-line text-warning" /> Generazione AI non disponibile
+      </h3>
+      <p className="text-ink-muted mb-3">
+        {notice ??
+          "Nessun provider AI configurato sul server."}{" "}
+        Imposta almeno una chiave API in <span className="font-mono">.env.local</span> e riavvia il server.
+      </p>
+      <p className="text-xs text-ink-muted">
+        Provider supportati: Groq, OpenAI, Anthropic, OpenRouter, OpenCode GO,
+        Together, Mistral, xAI (Grok), Ollama. Vedi <span className="font-mono">.env.local.example</span>.
+      </p>
+    </div>
   );
 }
 
@@ -460,6 +530,20 @@ export default function Page() {
   const [count, setCount] = useState(8);
   const [generating, setGenerating] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  // AI provider configuration (fetched from /api/ai/status).
+  interface ProviderStatus {
+    id: string;
+    label: string;
+    configured: boolean;
+    models: { id: string; label: string }[];
+    defaultModel: string;
+  }
+  const [aiProviders, setAiProviders] = useState<ProviderStatus[]>([]);
+  const [aiConfigured, setAiConfigured] = useState(true); // optimistic until status loads
+  const [aiHint, setAiHint] = useState<string | null>(null);
+  const [aiProvider, setAiProvider] = useState<string>("");
+  const [aiModel, setAiModel] = useState<string>("");
+  const [aiStatusLoaded, setAiStatusLoaded] = useState(false);
   // Persist requested alternatives count across sessions.
   useEffect(() => {
     const saved = localStorage.getItem("fdf-count");
@@ -477,6 +561,81 @@ export default function Page() {
       /* ignore */
     }
   }, []);
+
+  // Fetch AI provider status from the server; disable the AI panel if nothing is configured.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/ai/status")
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        setAiProviders(data.providers ?? []);
+        setAiConfigured(Boolean(data.configured));
+        setAiHint(data.hint ?? null);
+        // Restore saved selection or use the server default.
+        const savedProvider = localStorage.getItem("fdf-ai-provider");
+        const savedModel = localStorage.getItem("fdf-ai-model");
+        const configured = (data.providers ?? []).filter(
+          (p: ProviderStatus) => p.configured
+        );
+        const chosen =
+          configured.find((p: ProviderStatus) => p.id === savedProvider) ??
+          configured.find((p: ProviderStatus) => p.id === data.defaultProvider) ??
+          configured[0];
+        if (chosen) {
+          setAiProvider(chosen.id);
+          const model =
+            (savedModel && chosen.models.some((m: { id: string }) => m.id === savedModel)
+              ? savedModel
+              : null) ??
+            data.defaultModel ??
+            chosen.defaultModel;
+          setAiModel(model);
+        }
+        setAiStatusLoaded(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAiConfigured(false);
+        setAiHint("Impossibile verificare la configurazione AI.");
+        setAiStatusLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const onSelectProvider = useCallback((id: string) => {
+    setAiProvider(id);
+    try {
+      localStorage.setItem("fdf-ai-provider", id);
+    } catch {
+      /* ignore */
+    }
+    const p = PROVIDERS.find((x) => x.id === id);
+    const status = aiProviders.find((x) => x.id === id);
+    const model = status?.defaultModel || p?.defaultModel || "";
+    setAiModel(model);
+    try {
+      localStorage.setItem("fdf-ai-model", model);
+    } catch {
+      /* ignore */
+    }
+  }, [aiProviders]);
+
+  const onSelectModel = useCallback((model: string) => {
+    setAiModel(model);
+    try {
+      localStorage.setItem("fdf-ai-model", model);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const configuredProviders = useMemo(
+    () => aiProviders.filter((p) => p.configured),
+    [aiProviders]
+  );
   // Names generated in previous rounds (most-recent-last). Used to avoid repeats.
   const [history, setHistory] = useState<string[][]>([]);
   const [showHistory, setShowHistory] = useState(false);
@@ -655,7 +814,7 @@ export default function Page() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, count, exclusions, avoid }),
+        body: JSON.stringify({ prompt, count, exclusions, avoid, provider: aiProvider, model: aiModel }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -1142,11 +1301,15 @@ export default function Page() {
                   <i className="ri-search-line" /> Verifica diretta
                 </button>
                 <button
-                  onClick={() => setMode("generate")}
+                  onClick={() => aiConfigured && setMode("generate")}
+                  disabled={!aiConfigured}
+                  title={aiConfigured ? "" : aiHint ?? "AI non configurata"}
                   className={`px-4 h-9 rounded text-sm font-medium flex items-center gap-1.5 transition-colors ${
                     mode === "generate"
                       ? "bg-surface dark:bg-darksurface shadow-sm"
-                      : "text-ink-muted"
+                      : aiConfigured
+                      ? "text-ink-muted"
+                      : "text-ink-muted opacity-50 cursor-not-allowed"
                   }`}
                 >
                   <i className="ri-magic-line" /> Genera con AI
@@ -1247,8 +1410,38 @@ export default function Page() {
                     </>
                   )}
                 </>
-              ) : (
+              ) : aiConfigured ? (
                 <>
+                  {/* AI provider + model selectors */}
+                  <div className="grid sm:grid-cols-2 gap-3 mb-4">
+                    <label className="flex flex-col gap-1.5 text-sm">
+                      <span className="font-medium flex items-center gap-1.5">
+                        <i className="ri-cpu-line text-primary" /> Provider
+                      </span>
+                      <select
+                        value={aiProvider}
+                        onChange={(e) => onSelectProvider(e.target.value)}
+                        className="h-9 px-2 rounded border border-border dark:border-darkborder bg-background dark:bg-darkbg text-sm"
+                      >
+                        {configuredProviders.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-1.5 text-sm">
+                      <span className="font-medium flex items-center gap-1.5">
+                        <i className="ri-stack-line text-primary" /> Modello
+                      </span>
+                      <ModelSelect
+                        providerId={aiProvider}
+                        model={aiModel}
+                        providers={aiProviders}
+                        onChange={onSelectModel}
+                      />
+                    </label>
+                  </div>
                   <label htmlFor="prompt-input" className="block text-sm font-medium mb-2">
                     Descrivi l'idea in poche parole
                   </label>
@@ -1296,6 +1489,8 @@ export default function Page() {
                     <NewSearchButton onClick={onNewSearch} />
                   </div>
                 </>
+              ) : (
+                <AiNotConfigured notice={aiHint} />
               )}
             </div>
 
