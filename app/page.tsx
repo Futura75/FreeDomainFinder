@@ -30,7 +30,7 @@ import {
   type SortKey,
   type CheckTask,
 } from "@/lib/use-check-run";
-import { useAiSession } from "@/lib/use-ai-session";
+import { useAiSession, type AiStatusResponse } from "@/lib/use-ai-session";
 import { usePinned } from "@/lib/use-pinned";
 import { useTheme } from "@/lib/use-theme";
 import { useViewControls } from "@/lib/use-view-controls";
@@ -364,6 +364,15 @@ function NameResultGroup({
 
 type ViewTab = "results" | "pinned";
 
+/** Fetch the server's AI provider/model configuration. Module-level so its
+ * identity is stable across renders (the session hook re-runs its status
+ * effect when this changes). */
+async function fetchAiStatus(): Promise<AiStatusResponse> {
+  const res = await fetch("/api/ai/status");
+  if (!res.ok) throw new Error("Impossibile verificare la configurazione AI.");
+  return res.json();
+}
+
 export default function Page() {
   /* ---------- theme (module) ---------- */
   const { dark, toggleTheme } = useTheme({
@@ -462,6 +471,7 @@ export default function Page() {
   /* ---------- AI session (module) ---------- */
   const ai = useAiSession({
     storage: typeof window !== "undefined" ? localStorage : undefined,
+    fetchStatus: fetchAiStatus,
     onWarn: (m) => toast("warning", m),
     onError: (m) => toast("error", m),
     onSuccess: (m) => toast("success", m),
