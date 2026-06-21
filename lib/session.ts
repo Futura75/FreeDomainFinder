@@ -28,6 +28,7 @@ export interface SessionFile {
   count: number;
   suggestions: string[];
   history: string[][];
+  pinned: SavedResultGroup[];
   results: SavedResultGroup[];
   expectedMap: Record<string, number>;
   sortKey: string;

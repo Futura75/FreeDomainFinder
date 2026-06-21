@@ -28,7 +28,7 @@ Open http://localhost:3000
 1. **Direct check** — two input styles:
    - **Single**: one name, without extension (→ checks all active TLDs) or with extension (→ checks only that TLD)
    - **Bulk list**: one domain per line (or comma-separated), each with or without an extension
-2. **Generate with AI** — write a short prompt, pick how many alternatives (1–20), generate, edit the list if you want, then "Controlla tutti".
+2. **Generate with AI** — write a short prompt, pick how many alternatives (1–20, persisted across sessions), generate, edit the list if you want, then "Controlla tutti".
 
 During verification a **progress bar** shows advance; on completion a **SweetAlert notification** appears.
 
@@ -74,13 +74,17 @@ And enable filters:
 - **Solo liberi** — only names with at least one free TLD
 - **Solo tutti liberi** — only names where every checked TLD is free (complete verifications only, no false positives during checking)
 
+### Pinning results
+
+Each result card has a **pin** button (top-right). Pinned results are stored in a separate **Pinned** tab and persist across new searches and page reloads (saved in `localStorage` and included in exported session JSON files). Use it to keep the names you care about while exploring new batches.
+
 ### Click-to-highlight
 
 Clicking a name in the right panel highlights (ring + soft background) and scrolls to its result card on the left. Clicking again deselects it.
 
 ## Sessions (save / load)
 
-- **Salva** (header): downloads a JSON file `fdf-session-YYYY-MM-DD….json` with TLD config, inputs, prompt, AI suggestions, previous rounds history, full results and view settings.
+- **Salva** (header): downloads a JSON file `fdf-session-YYYY-MM-DD….json` with TLD config, inputs, prompt, AI suggestions, previous rounds history, pinned results, full results and view settings.
 - **Carica** (header): pick a previously saved JSON file; restores the whole session (with a SweetAlert confirmation). The file is interoperable and human-readable outside the app.
 - **Ricontrolla** (in the results header, or per-row in the right panel): re-runs verification of the session's names using the currently active TLDs.
 

@@ -109,7 +109,9 @@ function NameResultGroup({
   onlyFree,
   highlighted,
   allFree,
+  pinned,
   onSelect,
+  onTogglePin,
 }: {
   name: string;
   results: CheckResult[];
@@ -118,7 +120,9 @@ function NameResultGroup({
   onlyFree: boolean;
   highlighted: boolean;
   allFree: boolean;
+  pinned: boolean;
   onSelect: () => void;
+  onTogglePin: () => void;
 }) {
   const free = results.filter((r) => r.status === "free");
   const shown = (onlyFree ? free : results)
@@ -156,6 +160,23 @@ function NameResultGroup({
             ? `${free.length} liberi su ${expected}`
             : `${results.length}/${expected} verificati`}
         </span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onTogglePin();
+          }}
+          aria-label={pinned ? "Rimuovi dai pinnati" : "Pin risultato"}
+          title={pinned ? "Rimuovi dai pinnati" : "Pin risultato"}
+          className={`inline-flex items-center justify-center w-8 h-8 rounded border text-base transition-colors ${
+            pinned
+              ? "bg-accent/15 border-accent text-accent"
+              : "border-border dark:border-darkborder text-ink-muted hover:border-accent hover:text-accent bg-surface dark:bg-darksurface"
+          }`
+          }
+        >
+          <i className={pinned ? "ri-pushpin-fill" : "ri-pushpin-line"} />
+        </button>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2">
         {shown.map((r) => {
@@ -337,6 +358,23 @@ export default function Page() {
   const [count, setCount] = useState(8);
   const [generating, setGenerating] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  // Persist requested alternatives count across sessions.
+  useEffect(() => {
+    const saved = localStorage.getItem("fdf-count");
+    if (saved) {
+      const n = Number(saved);
+      if (Number.isFinite(n) && n >= 1 && n <= 20) setCount(n);
+    }
+  }, []);
+  const onCountChange = useCallback((n: number) => {
+    const clamped = Math.max(1, Math.min(20, n));
+    setCount(clamped);
+    try {
+      localStorage.setItem("fdf-count", String(clamped));
+    } catch {
+      /* ignore */
+    }
+  }, []);
   // Names generated in previous rounds (most-recent-last). Used to avoid repeats.
   const [history, setHistory] = useState<string[][]>([]);
   const [showHistory, setShowHistory] = useState(false);
@@ -346,8 +384,45 @@ export default function Page() {
   const [sortKey, setSortKey] = useState<SortKey>("alpha-asc");
   const [onlyFree, setOnlyFree] = useState(false);
   const [onlyAllFree, setOnlyAllFree] = useState(false);
+  const [pinned, setPinned] = useState<ResultGroup[]>([]);
+  const [viewTab, setViewTab] = useState<"results" | "pinned">("results");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /* ---------- pinned persistence ---------- */
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("fdf-pinned");
+      if (raw) setPinned(JSON.parse(raw));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem("fdf-pinned", JSON.stringify(pinned));
+    } catch {
+      /* ignore */
+    }
+  }, [pinned]);
+
+  const togglePin = useCallback((group: ResultGroup) => {
+    setPinned((cur) => {
+      const exists = cur.some((p) => p.name === group.name);
+      if (exists) return cur.filter((p) => p.name !== group.name);
+      // Merge results if already present (keep freshest non-empty).
+      return [
+        ...cur.filter((p) => p.name !== group.name),
+        { ...group, results: group.results.length > 0 ? group.results : [] },
+      ];
+    });
+  }, []);
+
+  const removePin = useCallback((name: string) => {
+    setPinned((cur) => cur.filter((p) => p.name !== name));
+  }, []);
+
+  const pinnedSet = useMemo(() => new Set(pinned.map((p) => p.name)), [pinned]);
 
   /* ---------- highlight + scroll into view ---------- */
   useEffect(() => {
@@ -613,6 +688,7 @@ export default function Page() {
       count,
       suggestions,
       history,
+      pinned: pinned as SavedResultGroup[],
       results: results as SavedResultGroup[],
       expectedMap,
       sortKey,
@@ -632,6 +708,7 @@ export default function Page() {
       suggestions,
       results,
       history,
+      pinned,
       expectedMap,
       sortKey,
       onlyFree,
@@ -682,6 +759,7 @@ export default function Page() {
       setBulkInput(raw.bulkInput);
       setPrompt(raw.prompt);
       setCount(raw.count);
+      setPinned(Array.isArray(raw.pinned) ? (raw.pinned as ResultGroup[]) : []);
       setSuggestions(raw.suggestions);
       setHistory(Array.isArray(raw.history) ? raw.history : []);
       setResults(raw.results as ResultGroup[]);
@@ -714,6 +792,7 @@ export default function Page() {
     setSuggestions([]);
     setHistory([]);
     setShowHistory(false);
+    setViewTab("results");
   };
 
   // Full reset: prompt, inputs, results, suggestions and AI history.
@@ -729,6 +808,8 @@ export default function Page() {
     setSelectedName(null);
     setOnlyFree(false);
     setOnlyAllFree(false);
+    setPinned([]);
+    setViewTab("results");
     toast("info", "Sessione azzerata.");
   };
 
@@ -1069,7 +1150,7 @@ export default function Page() {
                         max={20}
                         value={count}
                         onChange={(e) =>
-                          setCount(Math.max(1, Math.min(20, Number(e.target.value) || 1)))
+                          onCountChange(Number(e.target.value) || 1)
                         }
                         className="w-20 h-9 px-2 rounded border border-border dark:border-darkborder bg-background dark:bg-darkbg text-center font-mono"
                       />
@@ -1120,28 +1201,41 @@ export default function Page() {
               </div>
             )}
 
-            {/* results */}
+            {/* results / pinned */}
             <div>
               <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
-                <h2 className="text-lg font-semibold flex items-center gap-2">
-                  <i className="ri-list-results text-primary" />
-                  Risultati
-                  {results.length > 0 && (
-                    <span className="text-sm font-normal text-ink-muted">
-                      {results.length} nomi
-                      {totalFree > 0 && (
-                        <span className="text-success"> · {totalFree} liberi</span>
+                <div className="flex items-center gap-2">
+                  <div className="inline-flex rounded border border-border dark:border-darkborder bg-surface dark:bg-darksurface p-1">
+                    <button
+                      onClick={() => setViewTab("results")}
+                      className={`px-3 h-8 rounded text-sm font-medium flex items-center gap-1.5 ${
+                        viewTab === "results"
+                          ? "bg-primary text-white"
+                          : "text-ink dark:text-darkink hover:bg-background dark:hover:bg-darkbg"
+                      }`}
+                    >
+                      <i className="ri-list-results" /> Risultati
+                      {results.length > 0 && (
+                        <span className="font-mono text-xs opacity-90">{results.length}</span>
                       )}
-                      {allFreeSet.size > 0 && (
-                        <span className="text-success font-semibold">
-                          {" "}· {allFreeSet.size} con tutti i TLD liberi
-                          <i className="ri-trophy-line ml-1" />
-                        </span>
+                    </button>
+                    <button
+                      onClick={() => setViewTab("pinned")}
+                      className={`px-3 h-8 rounded text-sm font-medium flex items-center gap-1.5 ${
+                        viewTab === "pinned"
+                          ? "bg-accent text-white"
+                          : "text-ink dark:text-darkink hover:bg-background dark:hover:bg-darkbg"
+                      }`
+                      }
+                    >
+                      <i className="ri-pushpin-fill" /> Pinned
+                      {pinned.length > 0 && (
+                        <span className="font-mono text-xs opacity-90">{pinned.length}</span>
                       )}
-                    </span>
-                  )}
-                </h2>
-                {results.length > 0 && (
+                    </button>
+                  </div>
+                </div>
+                {viewTab === "results" && results.length > 0 && (
                   <div className="flex items-center gap-2 flex-wrap">
                     <label className="inline-flex items-center gap-1.5 text-sm">
                       <input
@@ -1189,7 +1283,8 @@ export default function Page() {
                 )}
               </div>
 
-              {results.length === 0 ? (
+              {viewTab === "results" &&
+                (results.length === 0 ? (
                 <div className="text-center py-16 text-ink-muted rounded border border-dashed border-border dark:border-darkborder">
                   <i className="ri-global-line text-5xl block mb-3 opacity-40" />
                   <p className="text-sm">
@@ -1209,6 +1304,8 @@ export default function Page() {
                       onlyFree={onlyFree}
                       allFree={allFreeSet.has(g.name)}
                       highlighted={selectedName === g.name}
+                      pinned={pinnedSet.has(g.name)}
+                      onTogglePin={() => togglePin(g)}
                       onSelect={() =>
                         setSelectedName((cur) => (cur === g.name ? null : g.name))
                       }
@@ -1224,7 +1321,41 @@ export default function Page() {
                     </div>
                   )}
                 </div>
-              )}
+              ))}
+
+              {viewTab === "pinned" &&
+                (pinned.length === 0 ? (
+                  <div className="text-center py-16 text-ink-muted rounded border border-dashed border-border dark:border-darkborder">
+                    <i className="ri-pushpin-line text-5xl block mb-3 opacity-40" />
+                    <p className="text-sm">
+                      Pinne i risultati che ti interessano per ritrovarli qui
+                      (sopravvivono alle nuove ricerche e persistono tra le sessioni).
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid gap-3">
+                    {pinned.map((g) => (
+                      <NameResultGroup
+                        key={g.name}
+                        name={g.name}
+                        results={g.results}
+                        expected={g.expected}
+                        busy={false}
+                        onlyFree={onlyFree}
+                        allFree={
+                          g.results.length >= g.expected &&
+                          g.results.every((r) => r.status === "free")
+                        }
+                        highlighted={selectedName === g.name}
+                        pinned={pinnedSet.has(g.name)}
+                        onTogglePin={() => removePin(g.name)}
+                        onSelect={() =>
+                          setSelectedName((cur) => (cur === g.name ? null : g.name))
+                        }
+                      />
+                    ))}
+                  </div>
+                ))}
             </div>
           </div>
 
