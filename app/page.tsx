@@ -25,6 +25,19 @@ import {
 
 /* ------------------------------- Chips ---------------------------------- */
 
+function NewSearchButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title="Nuova ricerca: cancella risultati, alternative e storico (mantiene il testo)"
+      className="h-11 px-4 rounded border border-border dark:border-darkborder bg-surface dark:bg-darksurface text-sm font-medium text-ink dark:text-darkink hover:border-accent hover:text-accent transition-colors flex items-center gap-1.5"
+    >
+      <i className="ri-refresh-line" /> Nuova ricerca
+    </button>
+  );
+}
+
 function TldChip({
   tld,
   active,
@@ -990,6 +1003,7 @@ export default function Page() {
                             </>
                           )}
                         </button>
+                        <NewSearchButton onClick={onNewSearch} />
                       </div>
                       <p className="mt-2 text-xs text-ink-muted">
                         Senza estensione verifica su tutti i {effectiveTlds.length} TLD attivi.
@@ -1016,7 +1030,7 @@ export default function Page() {
                         <button
                           onClick={onCheckDirect}
                           disabled={checking}
-                          className="h-10 px-5 rounded bg-primary text-white font-medium hover:bg-primary-dark disabled:opacity-60 flex items-center gap-2"
+                          className="h-11 px-5 rounded bg-primary text-white font-medium hover:bg-primary-dark disabled:opacity-60 flex items-center gap-2"
                         >
                           {checking ? (
                             <>
@@ -1028,6 +1042,7 @@ export default function Page() {
                             </>
                           )}
                         </button>
+                        <NewSearchButton onClick={onNewSearch} />
                       </div>
                     </>
                   )}
@@ -1062,7 +1077,7 @@ export default function Page() {
                     <button
                       onClick={onGenerate}
                       disabled={generating}
-                      className="h-10 px-5 rounded bg-primary text-white font-medium hover:bg-primary-dark disabled:opacity-60 flex items-center gap-2"
+                      className="h-11 px-5 rounded bg-primary text-white font-medium hover:bg-primary-dark disabled:opacity-60 flex items-center gap-2"
                     >
                       {generating ? (
                         <>
@@ -1078,6 +1093,7 @@ export default function Page() {
                         </>
                       )}
                     </button>
+                    <NewSearchButton onClick={onNewSearch} />
                   </div>
                 </>
               )}
@@ -1168,13 +1184,6 @@ export default function Page() {
                       title="Ricontrolla tutti i nomi"
                     >
                       <i className="ri-restart-line" /> Ricontrolla
-                    </button>
-                    <button
-                      onClick={onNewSearch}
-                      disabled={checking}
-                      className="h-9 px-3 text-sm text-ink-muted hover:text-ink flex items-center gap-1 disabled:opacity-60"
-                    >
-                      <i className="ri-refresh-line" /> Nuova ricerca
                     </button>
                   </div>
                 )}
