@@ -35,7 +35,11 @@ export default function RootLayout({
   } catch (e) {}
 })();`;
   return (
-    <html lang="it" className={`${publicSans.variable} ${jetbrainsMono.variable}`}>
+    <html
+      lang="it"
+      className={`${publicSans.variable} ${jetbrainsMono.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <link
           href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css"
