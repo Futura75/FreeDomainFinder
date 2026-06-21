@@ -39,7 +39,7 @@ Get a key: https://console.groq.com/keys
 GROQ_API_KEY=gsk_your_key_here
 ```
 
-Models offered: `llama-3.3-70b-versatile`, `llama-3.1-8b-instant`, `mixtral-8x7b-32768`. Default: `llama-3.3-70b-versatile`.
+Models offered: `llama-3.3-70b-versatile`, `llama-3.1-8b-instant`, `llama-3.2-3b-preview`. Default: `llama-3.3-70b-versatile`.
 
 ### OpenAI
 
