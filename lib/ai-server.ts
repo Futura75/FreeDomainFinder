@@ -183,6 +183,17 @@ export async function callProvider(
   });
   if (!res.ok) {
     const txt = await res.text();
+    // Some OpenAI-compatible servers (notably Groq) reject strict json_object
+    // mode with a 400 when the model's JSON is malformed or truncated, but
+    // still return the partial output in error.failed_generation. Hand that
+    // back so the tolerant parser upstream can salvage the names instead of
+    // failing the whole request.
+    try {
+      const failed = JSON.parse(txt)?.error?.failed_generation;
+      if (typeof failed === "string" && failed.trim()) return failed;
+    } catch {
+      /* body isn't JSON — fall through to the labelled error */
+    }
     throw new Error(`${provider.label} ${res.status}: ${txt.slice(0, 300)}`);
   }
   const data = await res.json();

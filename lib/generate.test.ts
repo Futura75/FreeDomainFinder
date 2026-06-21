@@ -66,6 +66,14 @@ describe("extractNames", () => {
     expect(extractNames('{"other":1}')).toEqual([]);
     expect(extractNames("")).toEqual([]);
   });
+  it("salvages names from a truncated JSON array", () => {
+    expect(
+      extractNames('{\n "names": [\n "Speakout",\n "Truthbox",\n "Whispr",\n')
+    ).toEqual(["Speakout", "Truthbox", "Whispr"]);
+  });
+  it("ignores an unterminated trailing token when salvaging", () => {
+    expect(extractNames('{"names":["alpha","beta","gam')).toEqual(["alpha", "beta"]);
+  });
 });
 
 describe("cleanNames", () => {
@@ -121,6 +129,23 @@ describe("generateNames", () => {
     );
     const r = await generateNames({ prompt: "x", count: 5, avoid: ["foo"] });
     expect(r.names).toEqual(["bar"]);
+  });
+
+  it("recovers names when Groq rejects json mode but returns failed_generation", async () => {
+    process.env.GROQ_API_KEY = "gsk_x";
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: {
+            code: "json_validate_failed",
+            failed_generation: '{"names":["Alpha","Beta","Gam',
+          },
+        }),
+        { status: 400, headers: { "content-type": "application/json" } }
+      )
+    );
+    const r = await generateNames({ prompt: "x", count: 5 });
+    expect(r.names).toEqual(["alpha", "beta"]);
   });
 
   it("throws when the model returns no valid names", async () => {

@@ -81,17 +81,34 @@ Rispondi in JSON: {"names": ["nome1","nome2",...]} con esattamente ${count} elem
 }
 
 /** Tolerantly extract a `names` array from a model's text response.
- * Accepts raw JSON, or JSON embedded in prose (first {...} block wins). */
+ * Accepts raw JSON, JSON embedded in prose (first {...} block wins), or — when
+ * the JSON is truncated/invalid (e.g. a model hit max_tokens, or Groq rejected
+ * strict json mode and returned a partial `failed_generation`) — salvages the
+ * quoted strings that follow the "names" key. */
 export function extractNames(content: string): string[] {
   if (!content) return [];
+  // 1) Strict parse: the whole string, or the first {...} block in prose.
   try {
     const match = content.match(/\{[\s\S]*\}/);
     const parsed = JSON.parse(match ? match[0] : content);
     if (Array.isArray(parsed?.names)) return parsed.names.map((n: unknown) => String(n));
-    return [];
   } catch {
-    return [];
+    /* fall through to salvage */
   }
+  // 2) Salvage from a truncated/invalid array. An unterminated trailing token
+  //    simply won't match, so we keep every complete name produced so far.
+  const namesIdx = content.search(/"names"\s*:\s*\[/);
+  if (namesIdx === -1) return [];
+  const matches = content.slice(namesIdx).match(/"(?:[^"\\]|\\.)*"/g);
+  if (!matches) return [];
+  // Drop the "names" key token itself; unescape each value defensively.
+  return matches.slice(1).map((s) => {
+    try {
+      return String(JSON.parse(s));
+    } catch {
+      return s.slice(1, -1);
+    }
+  });
 }
 
 /** Sanitize, validate, drop avoid-repeats, dedupe (order-preserving), cap. */
@@ -142,7 +159,7 @@ export async function generateNames(args: GenerateArgs): Promise<GenerateResult>
         { role: "system", content: systemPrompt },
         { role: "user", content: prompt },
       ],
-      { temperature: 0.9, maxTokens: 1024, jsonMode: supportsJsonMode }
+      { temperature: 0.9, maxTokens: 2048, jsonMode: supportsJsonMode }
     );
   } catch (e) {
     throw e; // already labelled by callProvider

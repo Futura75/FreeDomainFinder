@@ -232,4 +232,23 @@ describe("callProvider", () => {
       })
     ).rejects.toThrow(/Groq 429/);
   });
+
+  it("salvages Groq's failed_generation on a json_validate_failed 400", async () => {
+    setEnv({ GROQ_API_KEY: "gsk_x" });
+    const resolved = resolveSelection("groq")!;
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: { code: "json_validate_failed", failed_generation: '{"names":["x"]}' },
+        }),
+        { status: 400, headers: { "content-type": "application/json" } }
+      )
+    );
+    const out = await callProvider(resolved, [{ role: "user", content: "x" }], {
+      temperature: 0.9,
+      maxTokens: 10,
+      jsonMode: true,
+    });
+    expect(out).toBe('{"names":["x"]}');
+  });
 });
