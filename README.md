@@ -1,84 +1,116 @@
 # FreeDomainFinder
 
-App web locale per verificare la disponibilità di nomi a dominio e generare alternative con AI.
+A local-first web app to check domain name availability and generate brandable alternatives with AI.
 
 ## Stack
 
 - **Next.js 14** (App Router) + **TypeScript** + **Tailwind CSS v3**
-- Design system: **WhistleGuard** (palette blu/teal, font Public Sans + JetBrains Mono, Remix Icons)
-- Notifiche: **SweetAlert2** (toast in alto a destra + popup di completamento, temati chiaro/scuro)
-- Verifica disponibilità: **RDAP** (`rdap.org`) + fallback **DNS-over-HTTPS** (Cloudflare), lato client, niente chiavi
-- AI: **Groq** (`llama-3.3-70b-versatile`, free tier) via API route server-side
+- Design system: **WhistleGuard** (blue/teal palette, Public Sans + JetBrains Mono fonts, Remix Icons)
+- Notifications: **SweetAlert2** (top-right toasts + completion popups, light/dark themed)
+- Availability check: **RDAP** (`rdap.org`) + **DNS-over-HTTPS** fallback (Cloudflare), client-side, no API keys
+- AI: **Groq** (`llama-3.3-70b-versatile`, free tier) via server-side API route
 
-## Avvio rapido
+## Quick start
 
 ```bash
 npm install
 cp .env.local.example .env.local
-# inserisci la tua GROQ_API_KEY (gratis su https://console.groq.com/keys)
+# add your GROQ_API_KEY (free at https://console.groq.com/keys)
 npm run dev
 ```
 
-Apri http://localhost:3000
+Open http://localhost:3000
 
-> Senza chiave Groq la verifica diretta funziona comunque; solo la generazione AI restituisce un errore con le istruzioni.
+> Without a Groq key, direct verification still works; only AI generation returns an error with instructions.
 
-## Due modalità
+## Two modes
 
-1. **Verifica diretta** — due modalità di input:
-   - **Singolo**: un nome, senza estensione (→ tutti i TLD attivi) o con estensione (→ solo quel TLD)
-   - **Lista**: un dominio per riga (o separati da virgola), ognuno con o senza estensione
-2. **Genera con AI** — scrivi un breve prompt, scegli quante alternative (1–20), genera, modifica la lista se vuoi, poi "Controlla tutti". Puoi rigenerare più volte: ogni round precedente viene archiviato in un **accordion collassato** ("Round precedenti") e i nomi già proposti vengono inviati all'AI come da evitare, così ogni lista è diversa.
+1. **Direct check** — two input styles:
+   - **Single**: one name, without extension (→ checks all active TLDs) or with extension (→ checks only that TLD)
+   - **Bulk list**: one domain per line (or comma-separated), each with or without an extension
+2. **Generate with AI** — write a short prompt, pick how many alternatives (1–20), generate, edit the list if you want, then "Controlla tutti".
 
-Dopo una ricerca puoi:
-- **Nuova ricerca** (intestazione risultati): cancella i risultati ma mantiene il testo digitato (prompt/input) e lo storico AI
-- **Azzera** (header): ricomincia da zero, cancellando prompt, input, risultati, alternative e storico
+During verification a **progress bar** shows advance; on completion a **SweetAlert notification** appears.
 
-Durante la verifica una **progress bar** mostra l'avanzamento; al completamento arriva una **notifica SweetAlert**.
+### Generating multiple rounds
 
-Nei risultati puoi **ordinare** per alfabetico (A→Z / Z→A) o disponibilità (più/meno TLD liberi) e attivare i filtri **Solo liberi** (almeno un TLD libero) e **Solo tutti liberi** (nome con tutti i TLD verificati liberi, evidenziato con badge trofeo verde).
+You can regenerate as many times as you want. Each previous round is archived in a **collapsed accordion** ("Round precedenti") and previously proposed names are sent to the AI in an `avoid` list, so every new batch is different. The generate button label switches to "Genera un'altra lista" after the first round.
 
-## Estensioni di dominio
+### Starting over
 
-Pannello "TLD" in alto a destra:
-- **Attive**: chip blu, cliccabili per rimuovere; campo testo per aggiungere TLD arbitrari
-- **Suggerite**: chip pronti da attivare
-- **Escluse**: chip rossi, mai usate nei risultati (utile per filtrare l'output AI)
-- **Usati di recente**: chip dei TLD personalizzati già aggiunti in passato, per riattivarli senza ridigitarli
+- **Nuova ricerca** (in the results header): clears results but keeps typed text (prompt/inputs) and AI history
+- **Azzera** (in the header): full reset — clears prompt, inputs, results, suggestions and AI history
 
-La configurazione (attive, escluse, cronologia TLD usati) è persistita in `localStorage`.
+## Domain extensions (TLDs)
 
-## Risultati
+The "TLD" panel (top right):
+- **Attive**: blue chips, click to remove; text field to add arbitrary TLDs
+- **Suggerite**: ready-to-activate chips
+- **Escluse**: red chips, never shown in results (useful to filter AI output)
+- **Usati di recente**: chips for custom TLDs added in the past, to re-activate without retyping
 
-Per ogni nome, griglia di badge per TLD:
-- 🟢 **Libero** + link "Acquista" (Namecheap)
+The configuration (active, excluded, used-history) is persisted in `localStorage`.
+
+## Results
+
+For each name, a card with a grid of TLD badges:
+- 🟢 **Libero** + "Acquista" link (Namecheap)
 - 🔴 **Occupato**
-- ⚪ **Non verificabile** (TLD senza RDAP e DNS ambiguo)
+- ⚪ **Non verificabile** (TLD without RDAP and ambiguous DNS)
+
+TLD badges are always sorted alphabetically.
+
+### All-free highlighting
+
+Names where **all checked TLDs are free** get a special positive highlight: green border + ring, green-tinted background, and a **🏆 TUTTI LIBERI** badge. The results header shows a counter "N con tutti i TLD liberi 🏆", and the right-side name list shows a trophy icon next to those names.
+
+### Sorting & filtering
+
+In the results you can **sort** by:
+- Alphabetical A→Z / Z→A
+- Availability (most free TLDs first / least free TLDs first)
+
+And enable filters:
+- **Solo liberi** — only names with at least one free TLD
+- **Solo tutti liberi** — only names where every checked TLD is free (complete verifications only, no false positives during checking)
+
+### Click-to-highlight
+
+Clicking a name in the right panel highlights (ring + soft background) and scrolls to its result card on the left. Clicking again deselects it.
+
+## Sessions (save / load)
+
+- **Salva** (header): downloads a JSON file `fdf-session-YYYY-MM-DD….json` with TLD config, inputs, prompt, AI suggestions, previous rounds history, full results and view settings.
+- **Carica** (header): pick a previously saved JSON file; restores the whole session (with a SweetAlert confirmation). The file is interoperable and human-readable outside the app.
+- **Ricontrolla** (in the results header, or per-row in the right panel): re-runs verification of the session's names using the currently active TLDs.
 
 ## Layout
 
-App a tutto schermo, fluida: il contenuto si adatta alla larghezza del viewport (niente `max-width` fisso). La scheda **Nomi** usa una griglia `input | lista` su desktop, impilata su mobile. La scheda **Risultati** ospita la progress bar, i controlli di ordinamento/filtro e la griglia dei risultati.
+Full-width, fluid app: content adapts to the viewport width (no fixed `max-width`). On desktop the main area is a grid `input + results | name list (360px)`; on mobile it stacks. Dark mode toggle in the header, following the OS preference on first visit.
 
-## Sessioni (save / load)
-
-- **Salva** (header): scarica un file JSON `fdf-session-YYYY-MM-DD.json` con configurazione TLD, input, prompt, suggerimenti e risultati.
-- **Carica** (header): seleziona un file JSON precedentemente salvato; ripristina l'intera sessione (con conferma). Il file è interoperabile e leggibile anche fuori dall'app.
-- **Ricontrolla** (scheda Risultati o riga nella scheda Nomi): ri-esegue la verifica dei nomi presenti usando i TLD attualmente attivi.
-
-## Struttura
+## Project structure
 
 ```
 app/
-  layout.tsx              font + Remix Icons + globals
-  page.tsx                UI principale (client)
-  api/generate/route.ts   proxy Groq (nasconde la chiave)
+  layout.tsx              fonts + Remix Icons + globals
+  page.tsx                main UI (client)
+  api/generate/route.ts   Groq proxy (hides the API key, dedupes vs avoid list)
 lib/
-  tlds.ts                 normalizzazione, parsing, default TLD
-  check.ts                RDAP + DoH, concorrenza limitata
-tailwind.config.ts        token WhistleGuard + dark mode
+  tlds.ts                 normalization, parsing, default TLDs
+  check.ts                RDAP + DoH, bounded concurrency pool
+  notify.ts               SweetAlert2 helpers (toast/popup/confirm), themed
+  session.ts              session file types, validation, download/read
+tailwind.config.ts        WhistleGuard tokens + dark mode
 ```
 
-## Note
+## Git workflow
 
-- Uso in locale. Per deployare: refactor minimo (le API route già girano su Vercel).
-- La verifica della disponibilità è indicativa (RDAP + DNS). Prima di acquistare conferma sempre presso un registrar.
+This repo uses **git-flow**:
+- `develop` is the default branch and main working branch
+- `main` holds releases (merge from `develop` + tag)
+- feature branches: `feature/*` off `develop`
+
+## Notes
+
+- Built for local use. Deploying requires minimal refactoring (the API route already runs on Vercel).
+- Availability is indicative (RDAP + DNS). Always confirm with a registrar before purchasing.
