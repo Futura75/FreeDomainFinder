@@ -15,7 +15,6 @@ import {
   pool,
 } from "@/lib/check";
 import { setNotifyTheme, toast, popup, confirm } from "@/lib/notify";
-import { PROVIDERS } from "@/lib/ai-providers";
 import {
   SessionFile,
   SavedResultGroup,
@@ -48,17 +47,14 @@ interface ProviderStatusView {
 }
 
 function ModelSelect({
-  providerId,
+  status,
   model,
-  providers,
   onChange,
 }: {
-  providerId: string;
+  status: ProviderStatusView | null;
   model: string;
-  providers: ProviderStatusView[];
   onChange: (m: string) => void;
 }) {
-  const status = providers.find((p) => p.id === providerId);
   const options = status && status.models.length > 0 ? status.models : null;
   return (
     <>
@@ -612,9 +608,8 @@ export default function Page() {
     } catch {
       /* ignore */
     }
-    const p = PROVIDERS.find((x) => x.id === id);
     const status = aiProviders.find((x) => x.id === id);
-    const model = status?.defaultModel || p?.defaultModel || "";
+    const model = status?.defaultModel || "";
     setAiModel(model);
     try {
       localStorage.setItem("fdf-ai-model", model);
@@ -635,6 +630,47 @@ export default function Page() {
   const configuredProviders = useMemo(
     () => aiProviders.filter((p) => p.configured),
     [aiProviders]
+  );
+
+  // Keep provider + model selections consistent with the configured providers.
+  // Runs after the status loads and whenever the configured set changes.
+  useEffect(() => {
+    if (!aiStatusLoaded || configuredProviders.length === 0) return;
+    // Ensure the selected provider is configured; otherwise pick the first.
+    if (!configuredProviders.some((p) => p.id === aiProvider)) {
+      const first = configuredProviders[0];
+      setAiProvider(first.id);
+      try {
+        localStorage.setItem("fdf-ai-provider", first.id);
+      } catch {
+        /* ignore */
+      }
+      setAiModel(first.defaultModel || "");
+      try {
+        localStorage.setItem("fdf-ai-model", first.defaultModel || "");
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+    // Ensure the selected model belongs to the provider's model list
+    // (when the provider has a fixed list); otherwise fall back to its default.
+    const current = configuredProviders.find((p) => p.id === aiProvider)!;
+    if (current.models.length > 0 && !current.models.some((m) => m.id === aiModel)) {
+      const fallback = current.defaultModel || current.models[0].id;
+      setAiModel(fallback);
+      try {
+        localStorage.setItem("fdf-ai-model", fallback);
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [aiStatusLoaded, configuredProviders, aiProvider, aiModel]);
+
+  // The model options for the currently selected (configured) provider.
+  const currentProviderStatus = useMemo(
+    () => configuredProviders.find((p) => p.id === aiProvider) ?? null,
+    [configuredProviders, aiProvider]
   );
   // Names generated in previous rounds (most-recent-last). Used to avoid repeats.
   const [history, setHistory] = useState<string[][]>([]);
@@ -1435,9 +1471,8 @@ export default function Page() {
                         <i className="ri-stack-line text-primary" /> Modello
                       </span>
                       <ModelSelect
-                        providerId={aiProvider}
+                        status={currentProviderStatus}
                         model={aiModel}
-                        providers={aiProviders}
                         onChange={onSelectModel}
                       />
                     </label>
