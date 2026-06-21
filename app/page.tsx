@@ -38,6 +38,41 @@ function NewSearchButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+function ChoiceCard({
+  active,
+  icon,
+  title,
+  desc,
+  onClick,
+}: {
+  active: boolean;
+  icon: string;
+  title: string;
+  desc: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`text-left w-full rounded-md border p-4 transition-all flex items-start gap-3 ${
+        active
+          ? "border-primary ring-2 ring-primary/30 bg-primary/[0.04]"
+          : "border-border dark:border-darkborder bg-background dark:bg-darkbg hover:border-primary/50"
+      }`}
+    >
+      <i className={`${icon} text-2xl ${active ? "text-primary" : "text-ink-muted"}`} />
+      <span className="min-w-0">
+        <span className={`block text-sm font-semibold ${active ? "text-primary" : ""}`}>
+          {title}
+        </span>
+        <span className="block text-xs text-ink-muted mt-0.5">{desc}</span>
+      </span>
+    </button>
+  );
+}
+
 function TldChip({
   tld,
   active,
@@ -1065,27 +1100,21 @@ export default function Page() {
 
               {mode === "check" ? (
                 <>
-                  <div className="inline-flex rounded border border-border dark:border-darkborder bg-background dark:bg-darkbg p-0.5 mb-3 text-xs">
-                    <button
+                  <div className="grid sm:grid-cols-2 gap-3 mb-4">
+                    <ChoiceCard
+                      active={inputMode === "single"}
+                      icon="ri-input-method-line"
+                      title="Singolo dominio"
+                      desc="Verifica un nome alla volta, con o senza estensione."
                       onClick={() => setInputMode("single")}
-                      className={`px-3 h-8 rounded flex items-center gap-1 ${
-                        inputMode === "single"
-                          ? "bg-surface dark:bg-darksurface shadow-sm font-medium"
-                          : "text-ink-muted"
-                      }`}
-                    >
-                      <i className="ri-input-method-line" /> Singolo
-                    </button>
-                    <button
+                    />
+                    <ChoiceCard
+                      active={inputMode === "bulk"}
+                      icon="ri-list-unordered"
+                      title="Lista di domini"
+                      desc="Uno per riga, anche con estensioni diverse."
                       onClick={() => setInputMode("bulk")}
-                      className={`px-3 h-8 rounded flex items-center gap-1 ${
-                        inputMode === "bulk"
-                          ? "bg-surface dark:bg-darksurface shadow-sm font-medium"
-                          : "text-ink-muted"
-                      }`}
-                    >
-                      <i className="ri-list-unordered" /> Lista (uno per riga)
-                    </button>
+                    />
                   </div>
 
                   {inputMode === "single" ? (
@@ -1141,22 +1170,24 @@ export default function Page() {
                         <p className="text-xs text-ink-muted">
                           Righe con estensione → solo quel TLD; righe senza → tutti i {effectiveTlds.length} TLD attivi.
                         </p>
-                        <button
-                          onClick={onCheckDirect}
-                          disabled={checking}
-                          className="h-11 px-5 rounded bg-primary text-white font-medium hover:bg-primary-dark disabled:opacity-60 flex items-center gap-2"
-                        >
-                          {checking ? (
-                            <>
-                              <i className="ri-loader-4-line animate-spin" /> Verifica…
-                            </>
-                          ) : (
-                            <>
-                              <i className="ri-search-line" /> Controlla lista
-                            </>
-                          )}
-                        </button>
-                        <NewSearchButton onClick={onNewSearch} />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={onCheckDirect}
+                            disabled={checking}
+                            className="h-11 px-5 rounded bg-primary text-white font-medium hover:bg-primary-dark disabled:opacity-60 flex items-center gap-2"
+                          >
+                            {checking ? (
+                              <>
+                                <i className="ri-loader-4-line animate-spin" /> Verifica…
+                              </>
+                            ) : (
+                              <>
+                                <i className="ri-search-line" /> Controlla lista
+                              </>
+                            )}
+                          </button>
+                          <NewSearchButton onClick={onNewSearch} />
+                        </div>
                       </div>
                     </>
                   )}
