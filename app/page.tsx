@@ -396,7 +396,7 @@ export default function Page() {
 
   /* ---------- view controls ---------- */
   const [selectedName, setSelectedName] = useState<string | null>(null);
-  const [sortKey, setSortKey] = useState<SortKey>("alpha-asc");
+  const [sortKey, setSortKey] = useState<SortKey>("free-desc");
   const [onlyFree, setOnlyFree] = useState(false);
   const [onlyAllFree, setOnlyAllFree] = useState(false);
   const [pinned, setPinned] = useState<ResultGroup[]>([]);
