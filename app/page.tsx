@@ -328,30 +328,60 @@ interface ResultGroup {
 export default function Page() {
   /* ---------- theme ---------- */
   const [dark, setDark] = useState(false);
+  const themeInitRef = useRef(false); // true once the mount init has run
+  const userChoseThemeRef = useRef(false); // true once the user toggled manually
+  const detachSystemListenerRef = useRef<(() => void) | undefined>(undefined);
+
   // On mount: restore saved preference, else follow the system setting live.
+  // Applies the class synchronously here to avoid the flash caused by the
+  // [dark] effect running with the stale initial `false` on the first pass.
   useEffect(() => {
     const saved = localStorage.getItem("fdf-theme");
-    if (saved === "dark") {
-      setDark(true);
-      return;
-    }
-    if (saved === "light") {
-      setDark(false);
-      return;
-    }
-    // No manual preference yet: follow the system and keep following it.
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    setDark(mq.matches);
-    const onChange = (e: MediaQueryListEvent) => setDark(e.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
+    let initialDark: boolean;
+    if (saved === "dark") initialDark = true;
+    else if (saved === "light") initialDark = false;
+    else initialDark = mq.matches;
+
+    setDark(initialDark);
+    document.documentElement.classList.toggle("dark", initialDark);
+    setNotifyTheme(initialDark);
+    themeInitRef.current = true;
+
+    // No explicit preference yet: keep following the system until the user chooses.
+    if (saved !== "dark" && saved !== "light") {
+      const onChange = (e: MediaQueryListEvent) => {
+        if (userChoseThemeRef.current) return;
+        setDark(e.matches);
+        document.documentElement.classList.toggle("dark", e.matches);
+        setNotifyTheme(e.matches);
+      };
+      mq.addEventListener("change", onChange);
+      detachSystemListenerRef.current = () =>
+        mq.removeEventListener("change", onChange);
+    }
+    return () => detachSystemListenerRef.current?.();
   }, []);
-  // Persist the user's explicit choice and apply the class.
+
+  // Apply the class and persist — but only AFTER the mount init has run,
+  // so the first [dark] pass (with the stale initial false) doesn't wipe
+  // the class set by the pre-hydration script / mount init.
   useEffect(() => {
+    if (!themeInitRef.current) return;
     document.documentElement.classList.toggle("dark", dark);
-    localStorage.setItem("fdf-theme", dark ? "dark" : "light");
     setNotifyTheme(dark);
+    if (userChoseThemeRef.current) {
+      localStorage.setItem("fdf-theme", dark ? "dark" : "light");
+    }
   }, [dark]);
+
+  // Manual toggle: stop following the system and persist the choice.
+  const toggleTheme = useCallback(() => {
+    userChoseThemeRef.current = true;
+    detachSystemListenerRef.current?.();
+    detachSystemListenerRef.current = undefined;
+    setDark((d) => !d);
+  }, []);
 
   /* ---------- TLD config ---------- */
   const [active, setActive] = useState<string[]>([...DEFAULT_TLDS]);
@@ -954,7 +984,7 @@ export default function Page() {
             </button>
             <button
               type="button"
-              onClick={() => setDark((d) => !d)}
+              onClick={toggleTheme}
               aria-label="Cambia tema"
               className="w-9 h-9 grid place-items-center rounded border border-border dark:border-darkborder hover:border-primary"
             >
