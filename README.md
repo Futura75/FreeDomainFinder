@@ -28,7 +28,7 @@ Open http://localhost:3000
 1. **Direct check** — two input styles:
    - **Single**: one name, without extension (→ checks all active TLDs) or with extension (→ checks only that TLD)
    - **Bulk list**: one domain per line (or comma-separated), each with or without an extension
-2. **Generate with AI** — write a short prompt, pick how many alternatives (1–20, persisted across sessions), generate, edit the list if you want, then "Controlla tutti".
+2. **Generate with AI** — write a short prompt, pick how many alternatives (1–20, persisted across sessions), generate. The availability check starts automatically as soon as the names come back; you can still edit the list and re-check with "Controlla tutti". You can regenerate as many times as you want.
 
 During verification a **progress bar** shows advance; on completion a **SweetAlert notification** appears.
 

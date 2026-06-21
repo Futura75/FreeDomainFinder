@@ -567,10 +567,13 @@ export default function Page() {
       setResults([]);
       setExpectedMap({});
       setSelectedName(null);
+      setViewTab("results");
       toast(
         "success",
-        `Generate ${data.names.length} alternative. Modifica la lista, poi controlla.`
+        `Generate ${data.names.length} alternative: verifica automatica avviata.`
       );
+      // Auto-check the freshly generated names.
+      onCheckSuggestions(data.names);
     } catch (e) {
       toast("error", `Errore di rete: ${(e as Error).message}`);
     } finally {
@@ -578,12 +581,13 @@ export default function Page() {
     }
   };
 
-  const onCheckSuggestions = () => {
-    if (suggestions.length === 0) {
+  const onCheckSuggestions = (names?: string[]) => {
+    const source = names ?? suggestions;
+    if (source.length === 0) {
       toast("warning", "Genera prima delle alternative.");
       return;
     }
-    const cleaned = suggestions
+    const cleaned = source
       .map((s) => s.trim().toLowerCase().replace(/\s+/g, ""))
       .filter((s) => isValidSld(s));
     const unique = Array.from(new Set(cleaned));
@@ -1226,8 +1230,7 @@ export default function Page() {
                         viewTab === "pinned"
                           ? "bg-accent text-white"
                           : "text-ink dark:text-darkink hover:bg-background dark:hover:bg-darkbg"
-                      }`
-                      }
+                      }`}
                     >
                       <i className="ri-pushpin-fill" /> Pinned
                       {pinned.length > 0 && (
@@ -1369,7 +1372,7 @@ export default function Page() {
               </h2>
               {mode === "generate" && suggestions.length > 0 && (
                 <button
-                  onClick={onCheckSuggestions}
+                  onClick={() => onCheckSuggestions()}
                   disabled={checking}
                   className="h-8 px-3 rounded bg-success text-white text-sm font-medium hover:opacity-90 disabled:opacity-60 flex items-center gap-1 shrink-0"
                 >
