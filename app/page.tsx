@@ -25,6 +25,120 @@ import {
 
 /* ------------------------------- Chips ---------------------------------- */
 
+function NewSearchButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title="Nuova ricerca: cancella risultati, alternative, storico e pinned (mantiene il testo)"
+      className="h-11 px-4 rounded border border-border dark:border-darkborder bg-surface dark:bg-darksurface text-sm font-medium text-ink dark:text-darkink hover:border-accent hover:text-accent transition-colors flex items-center gap-1.5"
+    >
+      <i className="ri-refresh-line" /> Nuova ricerca
+    </button>
+  );
+}
+
+interface ProviderStatusView {
+  id: string;
+  label: string;
+  configured: boolean;
+  models: { id: string; label: string }[];
+  defaultModel: string;
+}
+
+function ModelSelect({
+  status,
+  model,
+  onChange,
+}: {
+  status: ProviderStatusView | null;
+  model: string;
+  onChange: (m: string) => void;
+}) {
+  const options = status && status.models.length > 0 ? status.models : null;
+  return (
+    <>
+      {options ? (
+        <select
+          value={model}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-9 px-2 rounded border border-border dark:border-darkborder bg-background dark:bg-darkbg text-sm"
+        >
+          {options.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.label}
+            </option>
+          ))}
+          {!options.some((m) => m.id === model) && model && (
+            <option value={model}>{model}</option>
+          )}
+        </select>
+      ) : (
+        <input
+          value={model}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="es. llama3.1"
+          className="h-9 px-2 rounded border border-border dark:border-darkborder bg-background dark:bg-darkbg text-sm font-mono"
+        />
+      )}
+    </>
+  );
+}
+
+function AiNotConfigured({ notice }: { notice: string | null }) {
+  return (
+    <div className="rounded-md border border-warning/40 bg-warning/10 p-5 text-sm">
+      <h3 className="text-base font-semibold flex items-center gap-2 mb-2">
+        <i className="ri-error-warning-line text-warning" /> Generazione AI non disponibile
+      </h3>
+      <p className="text-ink-muted mb-3">
+        {notice ??
+          "Nessun provider AI configurato sul server."}{" "}
+        Imposta almeno una chiave API in <span className="font-mono">.env.local</span> e riavvia il server.
+      </p>
+      <p className="text-xs text-ink-muted">
+        Provider supportati: Groq, OpenAI, Anthropic, OpenRouter, OpenCode GO,
+        Together, Mistral, xAI (Grok), Ollama. Vedi <span className="font-mono">.env.local.example</span>.
+      </p>
+    </div>
+  );
+}
+
+function ChoiceCard({
+  active,
+  icon,
+  title,
+  desc,
+  onClick,
+}: {
+  active: boolean;
+  icon: string;
+  title: string;
+  desc: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`text-left w-full rounded-md border p-4 transition-all flex items-start gap-3 ${
+        active
+          ? "border-primary ring-2 ring-primary/30 bg-primary/[0.04]"
+          : "border-border dark:border-darkborder bg-background dark:bg-darkbg hover:border-primary/50"
+      }`}
+    >
+      <i className={`${icon} text-2xl ${active ? "text-primary" : "text-ink-muted"}`} />
+      <span className="min-w-0">
+        <span className={`block text-sm font-semibold ${active ? "text-primary" : ""}`}>
+          {title}
+        </span>
+        <span className="block text-xs text-ink-muted mt-0.5">{desc}</span>
+      </span>
+    </button>
+  );
+}
+
 function TldChip({
   tld,
   active,
@@ -96,7 +210,9 @@ function NameResultGroup({
   onlyFree,
   highlighted,
   allFree,
+  pinned,
   onSelect,
+  onTogglePin,
 }: {
   name: string;
   results: CheckResult[];
@@ -105,7 +221,9 @@ function NameResultGroup({
   onlyFree: boolean;
   highlighted: boolean;
   allFree: boolean;
+  pinned: boolean;
   onSelect: () => void;
+  onTogglePin: () => void;
 }) {
   const free = results.filter((r) => r.status === "free");
   const shown = (onlyFree ? free : results)
@@ -143,6 +261,23 @@ function NameResultGroup({
             ? `${free.length} liberi su ${expected}`
             : `${results.length}/${expected} verificati`}
         </span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onTogglePin();
+          }}
+          aria-label={pinned ? "Rimuovi dai pinnati" : "Pin risultato"}
+          title={pinned ? "Rimuovi dai pinnati" : "Pin risultato"}
+          className={`inline-flex items-center justify-center w-8 h-8 rounded border text-base transition-colors ${
+            pinned
+              ? "bg-accent/15 border-accent text-accent"
+              : "border-border dark:border-darkborder text-ink-muted hover:border-accent hover:text-accent bg-surface dark:bg-darksurface"
+          }`
+          }
+        >
+          <i className={pinned ? "ri-pushpin-fill" : "ri-pushpin-line"} />
+        </button>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2">
         {shown.map((r) => {
@@ -171,7 +306,35 @@ function NameResultGroup({
                   Acquista
                 </a>
               ) : (
-                <span className="text-xs">{meta.label}</span>
+                <span className="flex items-center gap-1.5 text-xs">
+                  {meta.label}
+                  {r.status === "taken" && (
+                    <span className="flex items-center gap-1.5">
+                      <a
+                        href={`https://who.is/whois/${encodeURIComponent(r.domain)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-ink-muted hover:text-primary"
+                        title={`Cerca WHOIS di ${r.domain}`}
+                        aria-label={`Cerca WHOIS di ${r.domain}`}
+                      >
+                        <i className="ri-information-line text-sm" />
+                      </a>
+                      <a
+                        href={`https://${encodeURIComponent(r.domain)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-ink-muted hover:text-primary"
+                        title={`Apri ${r.domain} in una nuova tab`}
+                        aria-label={`Apri ${r.domain} in una nuova tab`}
+                      >
+                        <i className="ri-external-link-line text-sm" />
+                      </a>
+                    </span>
+                  )}
+                </span>
               )}
             </div>
           );
@@ -231,21 +394,60 @@ interface ResultGroup {
 export default function Page() {
   /* ---------- theme ---------- */
   const [dark, setDark] = useState(false);
+  const themeInitRef = useRef(false); // true once the mount init has run
+  const userChoseThemeRef = useRef(false); // true once the user toggled manually
+  const detachSystemListenerRef = useRef<(() => void) | undefined>(undefined);
+
+  // On mount: restore saved preference, else follow the system setting live.
+  // Applies the class synchronously here to avoid the flash caused by the
+  // [dark] effect running with the stale initial `false` on the first pass.
   useEffect(() => {
     const saved = localStorage.getItem("fdf-theme");
-    if (saved === "dark") setDark(true);
-    else if (saved === "light") setDark(false);
-    else if (
-      window.matchMedia &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches
-    )
-      setDark(true);
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    let initialDark: boolean;
+    if (saved === "dark") initialDark = true;
+    else if (saved === "light") initialDark = false;
+    else initialDark = mq.matches;
+
+    setDark(initialDark);
+    document.documentElement.classList.toggle("dark", initialDark);
+    setNotifyTheme(initialDark);
+    themeInitRef.current = true;
+
+    // No explicit preference yet: keep following the system until the user chooses.
+    if (saved !== "dark" && saved !== "light") {
+      const onChange = (e: MediaQueryListEvent) => {
+        if (userChoseThemeRef.current) return;
+        setDark(e.matches);
+        document.documentElement.classList.toggle("dark", e.matches);
+        setNotifyTheme(e.matches);
+      };
+      mq.addEventListener("change", onChange);
+      detachSystemListenerRef.current = () =>
+        mq.removeEventListener("change", onChange);
+    }
+    return () => detachSystemListenerRef.current?.();
   }, []);
+
+  // Apply the class and persist — but only AFTER the mount init has run,
+  // so the first [dark] pass (with the stale initial false) doesn't wipe
+  // the class set by the pre-hydration script / mount init.
   useEffect(() => {
+    if (!themeInitRef.current) return;
     document.documentElement.classList.toggle("dark", dark);
-    localStorage.setItem("fdf-theme", dark ? "dark" : "light");
     setNotifyTheme(dark);
+    if (userChoseThemeRef.current) {
+      localStorage.setItem("fdf-theme", dark ? "dark" : "light");
+    }
   }, [dark]);
+
+  // Manual toggle: stop following the system and persist the choice.
+  const toggleTheme = useCallback(() => {
+    userChoseThemeRef.current = true;
+    detachSystemListenerRef.current?.();
+    detachSystemListenerRef.current = undefined;
+    setDark((d) => !d);
+  }, []);
 
   /* ---------- TLD config ---------- */
   const [active, setActive] = useState<string[]>([...DEFAULT_TLDS]);
@@ -324,17 +526,200 @@ export default function Page() {
   const [count, setCount] = useState(8);
   const [generating, setGenerating] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  // AI provider configuration (fetched from /api/ai/status).
+  interface ProviderStatus {
+    id: string;
+    label: string;
+    configured: boolean;
+    models: { id: string; label: string }[];
+    defaultModel: string;
+  }
+  const [aiProviders, setAiProviders] = useState<ProviderStatus[]>([]);
+  const [aiConfigured, setAiConfigured] = useState(true); // optimistic until status loads
+  const [aiHint, setAiHint] = useState<string | null>(null);
+  const [aiProvider, setAiProvider] = useState<string>("");
+  const [aiModel, setAiModel] = useState<string>("");
+  const [aiStatusLoaded, setAiStatusLoaded] = useState(false);
+  // Persist requested alternatives count across sessions.
+  useEffect(() => {
+    const saved = localStorage.getItem("fdf-count");
+    if (saved) {
+      const n = Number(saved);
+      if (Number.isFinite(n) && n >= 1 && n <= 20) setCount(n);
+    }
+  }, []);
+  const onCountChange = useCallback((n: number) => {
+    const clamped = Math.max(1, Math.min(20, n));
+    setCount(clamped);
+    try {
+      localStorage.setItem("fdf-count", String(clamped));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  // Fetch AI provider status from the server; disable the AI panel if nothing is configured.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/ai/status")
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        setAiProviders(data.providers ?? []);
+        setAiConfigured(Boolean(data.configured));
+        setAiHint(data.hint ?? null);
+        // Restore saved selection or use the server default.
+        const savedProvider = localStorage.getItem("fdf-ai-provider");
+        const savedModel = localStorage.getItem("fdf-ai-model");
+        const configured = (data.providers ?? []).filter(
+          (p: ProviderStatus) => p.configured
+        );
+        const chosen =
+          configured.find((p: ProviderStatus) => p.id === savedProvider) ??
+          configured.find((p: ProviderStatus) => p.id === data.defaultProvider) ??
+          configured[0];
+        if (chosen) {
+          setAiProvider(chosen.id);
+          const model =
+            (savedModel && chosen.models.some((m: { id: string }) => m.id === savedModel)
+              ? savedModel
+              : null) ??
+            data.defaultModel ??
+            chosen.defaultModel;
+          setAiModel(model);
+        }
+        setAiStatusLoaded(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAiConfigured(false);
+        setAiHint("Impossibile verificare la configurazione AI.");
+        setAiStatusLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const onSelectProvider = useCallback((id: string) => {
+    setAiProvider(id);
+    try {
+      localStorage.setItem("fdf-ai-provider", id);
+    } catch {
+      /* ignore */
+    }
+    const status = aiProviders.find((x) => x.id === id);
+    const model = status?.defaultModel || "";
+    setAiModel(model);
+    try {
+      localStorage.setItem("fdf-ai-model", model);
+    } catch {
+      /* ignore */
+    }
+  }, [aiProviders]);
+
+  const onSelectModel = useCallback((model: string) => {
+    setAiModel(model);
+    try {
+      localStorage.setItem("fdf-ai-model", model);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const configuredProviders = useMemo(
+    () => aiProviders.filter((p) => p.configured),
+    [aiProviders]
+  );
+
+  // Keep provider + model selections consistent with the configured providers.
+  // Runs after the status loads and whenever the configured set changes.
+  useEffect(() => {
+    if (!aiStatusLoaded || configuredProviders.length === 0) return;
+    // Ensure the selected provider is configured; otherwise pick the first.
+    if (!configuredProviders.some((p) => p.id === aiProvider)) {
+      const first = configuredProviders[0];
+      setAiProvider(first.id);
+      try {
+        localStorage.setItem("fdf-ai-provider", first.id);
+      } catch {
+        /* ignore */
+      }
+      setAiModel(first.defaultModel || "");
+      try {
+        localStorage.setItem("fdf-ai-model", first.defaultModel || "");
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+    // Ensure the selected model belongs to the provider's model list
+    // (when the provider has a fixed list); otherwise fall back to its default.
+    const current = configuredProviders.find((p) => p.id === aiProvider)!;
+    if (current.models.length > 0 && !current.models.some((m) => m.id === aiModel)) {
+      const fallback = current.defaultModel || current.models[0].id;
+      setAiModel(fallback);
+      try {
+        localStorage.setItem("fdf-ai-model", fallback);
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [aiStatusLoaded, configuredProviders, aiProvider, aiModel]);
+
+  // The model options for the currently selected (configured) provider.
+  const currentProviderStatus = useMemo(
+    () => configuredProviders.find((p) => p.id === aiProvider) ?? null,
+    [configuredProviders, aiProvider]
+  );
   // Names generated in previous rounds (most-recent-last). Used to avoid repeats.
   const [history, setHistory] = useState<string[][]>([]);
   const [showHistory, setShowHistory] = useState(false);
 
   /* ---------- view controls ---------- */
   const [selectedName, setSelectedName] = useState<string | null>(null);
-  const [sortKey, setSortKey] = useState<SortKey>("alpha-asc");
+  const [sortKey, setSortKey] = useState<SortKey>("free-desc");
   const [onlyFree, setOnlyFree] = useState(false);
   const [onlyAllFree, setOnlyAllFree] = useState(false);
+  const [pinned, setPinned] = useState<ResultGroup[]>([]);
+  const [viewTab, setViewTab] = useState<"results" | "pinned">("results");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /* ---------- pinned persistence ---------- */
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("fdf-pinned");
+      if (raw) setPinned(JSON.parse(raw));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem("fdf-pinned", JSON.stringify(pinned));
+    } catch {
+      /* ignore */
+    }
+  }, [pinned]);
+
+  const togglePin = useCallback((group: ResultGroup) => {
+    setPinned((cur) => {
+      const exists = cur.some((p) => p.name === group.name);
+      if (exists) return cur.filter((p) => p.name !== group.name);
+      // Merge results if already present (keep freshest non-empty).
+      return [
+        ...cur.filter((p) => p.name !== group.name),
+        { ...group, results: group.results.length > 0 ? group.results : [] },
+      ];
+    });
+  }, []);
+
+  const removePin = useCallback((name: string) => {
+    setPinned((cur) => cur.filter((p) => p.name !== name));
+  }, []);
+
+  const pinnedSet = useMemo(() => new Set(pinned.map((p) => p.name)), [pinned]);
 
   /* ---------- highlight + scroll into view ---------- */
   useEffect(() => {
@@ -465,7 +850,7 @@ export default function Page() {
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, count, exclusions, avoid }),
+        body: JSON.stringify({ prompt, count, exclusions, avoid, provider: aiProvider, model: aiModel }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -479,10 +864,13 @@ export default function Page() {
       setResults([]);
       setExpectedMap({});
       setSelectedName(null);
+      setViewTab("results");
       toast(
         "success",
-        `Generate ${data.names.length} alternative. Modifica la lista, poi controlla.`
+        `Generate ${data.names.length} alternative: verifica automatica avviata.`
       );
+      // Auto-check the freshly generated names.
+      onCheckSuggestions(data.names);
     } catch (e) {
       toast("error", `Errore di rete: ${(e as Error).message}`);
     } finally {
@@ -490,12 +878,13 @@ export default function Page() {
     }
   };
 
-  const onCheckSuggestions = () => {
-    if (suggestions.length === 0) {
+  const onCheckSuggestions = (names?: string[]) => {
+    const source = names ?? suggestions;
+    if (source.length === 0) {
       toast("warning", "Genera prima delle alternative.");
       return;
     }
-    const cleaned = suggestions
+    const cleaned = source
       .map((s) => s.trim().toLowerCase().replace(/\s+/g, ""))
       .filter((s) => isValidSld(s));
     const unique = Array.from(new Set(cleaned));
@@ -522,7 +911,8 @@ export default function Page() {
   const visibleGroups = useMemo(() => {
     const freeCount = (g: ResultGroup) =>
       g.results.filter((r) => r.status === "free").length;
-    const arr = [...results];
+    const source = viewTab === "pinned" ? pinned : results;
+    const arr = [...source];
     switch (sortKey) {
       case "alpha-asc":
         arr.sort((a, b) => a.name.localeCompare(b.name));
@@ -552,7 +942,7 @@ export default function Page() {
       return arr.filter((g) => freeCount(g) > 0);
     }
     return arr;
-  }, [results, sortKey, onlyFree, onlyAllFree, expectedMap]);
+  }, [results, pinned, viewTab, sortKey, onlyFree, onlyAllFree, expectedMap]);
 
   /* ---------- all-free map (for right-panel hints) ---------- */
   const allFreeSet = useMemo(() => {
@@ -562,8 +952,14 @@ export default function Page() {
       if (g.results.length >= exp && g.results.every((r) => r.status === "free"))
         s.add(g.name);
     }
+    // Include pinned names whose all checked TLDs are free.
+    for (const g of pinned) {
+      const exp = g.expected;
+      if (g.results.length >= exp && g.results.every((r) => r.status === "free"))
+        s.add(g.name);
+    }
     return s;
-  }, [results, expectedMap]);
+  }, [results, expectedMap, pinned]);
 
   const totalFree = useMemo(
     () =>
@@ -581,8 +977,16 @@ export default function Page() {
 
   /* ---------- names list (right panel) ---------- */
   const rightNames = useMemo(
-    () => (mode === "generate" ? suggestions : results.map((g) => g.name)),
-    [mode, suggestions, results]
+    () =>
+      mode === "generate"
+        ? suggestions
+        : Array.from(
+            new Set([
+              ...results.map((g) => g.name),
+              ...pinned.map((g) => g.name),
+            ])
+          ),
+    [mode, suggestions, results, pinned]
   );
 
   /* ---------- session save / load ---------- */
@@ -600,6 +1004,7 @@ export default function Page() {
       count,
       suggestions,
       history,
+      pinned: pinned as SavedResultGroup[],
       results: results as SavedResultGroup[],
       expectedMap,
       sortKey,
@@ -619,6 +1024,7 @@ export default function Page() {
       suggestions,
       results,
       history,
+      pinned,
       expectedMap,
       sortKey,
       onlyFree,
@@ -669,6 +1075,7 @@ export default function Page() {
       setBulkInput(raw.bulkInput);
       setPrompt(raw.prompt);
       setCount(raw.count);
+      setPinned(Array.isArray(raw.pinned) ? (raw.pinned as ResultGroup[]) : []);
       setSuggestions(raw.suggestions);
       setHistory(Array.isArray(raw.history) ? raw.history : []);
       setResults(raw.results as ResultGroup[]);
@@ -683,8 +1090,9 @@ export default function Page() {
     }
   };
 
-  const onRecheckAll = () => {
-    const names = results.map((g) => g.name);
+  const onRecheckAll = (source: "results" | "pinned") => {
+    const base = source === "pinned" ? pinned : results;
+    const names = base.map((g) => g.name);
     if (names.length === 0) return;
     const tasks: CheckTask[] = [];
     for (const name of names) tasks.push(...buildTasksForName(name, null));
@@ -698,6 +1106,11 @@ export default function Page() {
     setSelectedName(null);
     setOnlyFree(false);
     setOnlyAllFree(false);
+    setSuggestions([]);
+    setHistory([]);
+    setShowHistory(false);
+    setPinned([]);
+    setViewTab("results");
   };
 
   // Full reset: prompt, inputs, results, suggestions and AI history.
@@ -713,6 +1126,8 @@ export default function Page() {
     setSelectedName(null);
     setOnlyFree(false);
     setOnlyAllFree(false);
+    setPinned([]);
+    setViewTab("results");
     toast("info", "Sessione azzerata.");
   };
 
@@ -780,7 +1195,7 @@ export default function Page() {
             </button>
             <button
               type="button"
-              onClick={() => setDark((d) => !d)}
+              onClick={toggleTheme}
               aria-label="Cambia tema"
               className="w-9 h-9 grid place-items-center rounded border border-border dark:border-darkborder hover:border-primary"
             >
@@ -922,11 +1337,15 @@ export default function Page() {
                   <i className="ri-search-line" /> Verifica diretta
                 </button>
                 <button
-                  onClick={() => setMode("generate")}
+                  onClick={() => aiConfigured && setMode("generate")}
+                  disabled={!aiConfigured}
+                  title={aiConfigured ? "" : aiHint ?? "AI non configurata"}
                   className={`px-4 h-9 rounded text-sm font-medium flex items-center gap-1.5 transition-colors ${
                     mode === "generate"
                       ? "bg-surface dark:bg-darksurface shadow-sm"
-                      : "text-ink-muted"
+                      : aiConfigured
+                      ? "text-ink-muted"
+                      : "text-ink-muted opacity-50 cursor-not-allowed"
                   }`}
                 >
                   <i className="ri-magic-line" /> Genera con AI
@@ -935,27 +1354,21 @@ export default function Page() {
 
               {mode === "check" ? (
                 <>
-                  <div className="inline-flex rounded border border-border dark:border-darkborder bg-background dark:bg-darkbg p-0.5 mb-3 text-xs">
-                    <button
+                  <div className="grid sm:grid-cols-2 gap-3 mb-4">
+                    <ChoiceCard
+                      active={inputMode === "single"}
+                      icon="ri-input-method-line"
+                      title="Singolo dominio"
+                      desc="Verifica un nome alla volta, con o senza estensione."
                       onClick={() => setInputMode("single")}
-                      className={`px-3 h-8 rounded flex items-center gap-1 ${
-                        inputMode === "single"
-                          ? "bg-surface dark:bg-darksurface shadow-sm font-medium"
-                          : "text-ink-muted"
-                      }`}
-                    >
-                      <i className="ri-input-method-line" /> Singolo
-                    </button>
-                    <button
+                    />
+                    <ChoiceCard
+                      active={inputMode === "bulk"}
+                      icon="ri-list-unordered"
+                      title="Lista di domini"
+                      desc="Uno per riga, anche con estensioni diverse."
                       onClick={() => setInputMode("bulk")}
-                      className={`px-3 h-8 rounded flex items-center gap-1 ${
-                        inputMode === "bulk"
-                          ? "bg-surface dark:bg-darksurface shadow-sm font-medium"
-                          : "text-ink-muted"
-                      }`}
-                    >
-                      <i className="ri-list-unordered" /> Lista (uno per riga)
-                    </button>
+                    />
                   </div>
 
                   {inputMode === "single" ? (
@@ -987,6 +1400,7 @@ export default function Page() {
                             </>
                           )}
                         </button>
+                        <NewSearchButton onClick={onNewSearch} />
                       </div>
                       <p className="mt-2 text-xs text-ink-muted">
                         Senza estensione verifica su tutti i {effectiveTlds.length} TLD attivi.
@@ -1010,27 +1424,59 @@ export default function Page() {
                         <p className="text-xs text-ink-muted">
                           Righe con estensione → solo quel TLD; righe senza → tutti i {effectiveTlds.length} TLD attivi.
                         </p>
-                        <button
-                          onClick={onCheckDirect}
-                          disabled={checking}
-                          className="h-10 px-5 rounded bg-primary text-white font-medium hover:bg-primary-dark disabled:opacity-60 flex items-center gap-2"
-                        >
-                          {checking ? (
-                            <>
-                              <i className="ri-loader-4-line animate-spin" /> Verifica…
-                            </>
-                          ) : (
-                            <>
-                              <i className="ri-search-line" /> Controlla lista
-                            </>
-                          )}
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={onCheckDirect}
+                            disabled={checking}
+                            className="h-11 px-5 rounded bg-primary text-white font-medium hover:bg-primary-dark disabled:opacity-60 flex items-center gap-2"
+                          >
+                            {checking ? (
+                              <>
+                                <i className="ri-loader-4-line animate-spin" /> Verifica…
+                              </>
+                            ) : (
+                              <>
+                                <i className="ri-search-line" /> Controlla lista
+                              </>
+                            )}
+                          </button>
+                          <NewSearchButton onClick={onNewSearch} />
+                        </div>
                       </div>
                     </>
                   )}
                 </>
-              ) : (
+              ) : aiConfigured ? (
                 <>
+                  {/* AI provider + model selectors */}
+                  <div className="grid sm:grid-cols-2 gap-3 mb-4">
+                    <label className="flex flex-col gap-1.5 text-sm">
+                      <span className="font-medium flex items-center gap-1.5">
+                        <i className="ri-cpu-line text-primary" /> Provider
+                      </span>
+                      <select
+                        value={aiProvider}
+                        onChange={(e) => onSelectProvider(e.target.value)}
+                        className="h-9 px-2 rounded border border-border dark:border-darkborder bg-background dark:bg-darkbg text-sm"
+                      >
+                        {configuredProviders.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-1.5 text-sm">
+                      <span className="font-medium flex items-center gap-1.5">
+                        <i className="ri-stack-line text-primary" /> Modello
+                      </span>
+                      <ModelSelect
+                        status={currentProviderStatus}
+                        model={aiModel}
+                        onChange={onSelectModel}
+                      />
+                    </label>
+                  </div>
                   <label htmlFor="prompt-input" className="block text-sm font-medium mb-2">
                     Descrivi l'idea in poche parole
                   </label>
@@ -1051,7 +1497,7 @@ export default function Page() {
                         max={20}
                         value={count}
                         onChange={(e) =>
-                          setCount(Math.max(1, Math.min(20, Number(e.target.value) || 1)))
+                          onCountChange(Number(e.target.value) || 1)
                         }
                         className="w-20 h-9 px-2 rounded border border-border dark:border-darkborder bg-background dark:bg-darkbg text-center font-mono"
                       />
@@ -1059,7 +1505,7 @@ export default function Page() {
                     <button
                       onClick={onGenerate}
                       disabled={generating}
-                      className="h-10 px-5 rounded bg-primary text-white font-medium hover:bg-primary-dark disabled:opacity-60 flex items-center gap-2"
+                      className="h-11 px-5 rounded bg-primary text-white font-medium hover:bg-primary-dark disabled:opacity-60 flex items-center gap-2"
                     >
                       {generating ? (
                         <>
@@ -1075,8 +1521,11 @@ export default function Page() {
                         </>
                       )}
                     </button>
+                    <NewSearchButton onClick={onNewSearch} />
                   </div>
                 </>
+              ) : (
+                <AiNotConfigured notice={aiHint} />
               )}
             </div>
 
@@ -1101,38 +1550,49 @@ export default function Page() {
               </div>
             )}
 
-            {/* results */}
+            {/* results / pinned */}
             <div>
               <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
-                <h2 className="text-lg font-semibold flex items-center gap-2">
-                  <i className="ri-list-results text-primary" />
-                  Risultati
-                  {results.length > 0 && (
-                    <span className="text-sm font-normal text-ink-muted">
-                      {results.length} nomi
-                      {totalFree > 0 && (
-                        <span className="text-success"> · {totalFree} liberi</span>
+                <div className="flex items-center gap-2">
+                  <div className="inline-flex rounded border border-border dark:border-darkborder bg-surface dark:bg-darksurface p-1">
+                    <button
+                      onClick={() => setViewTab("results")}
+                      className={`px-3 h-8 rounded text-sm font-medium flex items-center gap-1.5 ${
+                        viewTab === "results"
+                          ? "bg-primary text-white"
+                          : "text-ink dark:text-darkink hover:bg-background dark:hover:bg-darkbg"
+                      }`}
+                    >
+                      <i className="ri-list-results" /> Risultati
+                      {results.length > 0 && (
+                        <span className="font-mono text-xs opacity-90">{results.length}</span>
                       )}
-                      {allFreeSet.size > 0 && (
-                        <span className="text-success font-semibold">
-                          {" "}· {allFreeSet.size} con tutti i TLD liberi
-                          <i className="ri-trophy-line ml-1" />
-                        </span>
+                    </button>
+                    <button
+                      onClick={() => setViewTab("pinned")}
+                      className={`px-3 h-8 rounded text-sm font-medium flex items-center gap-1.5 ${
+                        viewTab === "pinned"
+                          ? "bg-accent text-white"
+                          : "text-ink dark:text-darkink hover:bg-background dark:hover:bg-darkbg"
+                      }`}
+                    >
+                      <i className="ri-pushpin-fill" /> Pinned
+                      {pinned.length > 0 && (
+                        <span className="font-mono text-xs opacity-90">{pinned.length}</span>
                       )}
-                    </span>
-                  )}
-                </h2>
-                {results.length > 0 && (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <label className="inline-flex items-center gap-1.5 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={onlyFree}
-                        onChange={(e) => setOnlyFree(e.target.checked)}
-                        className="accent-primary"
-                      />
-                      Solo liberi
-                    </label>
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <label className="inline-flex items-center gap-1.5 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={onlyFree}
+                      onChange={(e) => setOnlyFree(e.target.checked)}
+                      className="accent-primary"
+                    />
+                    Solo liberi
+                  </label>
                     <label className="inline-flex items-center gap-1.5 text-sm">
                       <input
                         type="checkbox"
@@ -1158,61 +1618,79 @@ export default function Page() {
                       <option value="free-desc">Disponibilità (più liberi prima)</option>
                       <option value="free-asc">Disponibilità (meno liberi prima)</option>
                     </select>
-                    <button
-                      onClick={onRecheckAll}
-                      disabled={checking}
-                      className="h-9 px-3 rounded border border-border dark:border-darkborder hover:border-primary text-sm flex items-center gap-1.5 disabled:opacity-60"
-                      title="Ricontrolla tutti i nomi"
-                    >
-                      <i className="ri-restart-line" /> Ricontrolla
-                    </button>
-                    <button
-                      onClick={onNewSearch}
-                      disabled={checking}
-                      className="h-9 px-3 text-sm text-ink-muted hover:text-ink flex items-center gap-1 disabled:opacity-60"
-                    >
-                      <i className="ri-refresh-line" /> Nuova ricerca
-                    </button>
                   </div>
-                )}
+                <button
+                  onClick={() => onRecheckAll(viewTab)}
+                  disabled={checking || (viewTab === "results" ? results.length === 0 : pinned.length === 0)}
+                  className="h-9 px-3 rounded border border-border dark:border-darkborder hover:border-primary text-sm flex items-center gap-1.5 disabled:opacity-60"
+                  title={
+                    viewTab === "pinned"
+                      ? "Ricontrolla tutti i nomi pinnati"
+                      : "Ricontrolla tutti i nomi"
+                  }
+                >
+                  <i className="ri-restart-line" /> Ricontrolla
+                </button>
               </div>
 
-              {results.length === 0 ? (
-                <div className="text-center py-16 text-ink-muted rounded border border-dashed border-border dark:border-darkborder">
-                  <i className="ri-global-line text-5xl block mb-3 opacity-40" />
-                  <p className="text-sm">
-                    Inserisci un nome per verificare la disponibilità, oppure genera
-                    alternative con AI.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid gap-3">
-                  {visibleGroups.map((g) => (
-                    <NameResultGroup
-                      key={g.name}
-                      name={g.name}
-                      results={g.results}
-                      expected={expectedMap[g.name] ?? g.expected}
-                      busy={checking && g.results.length < (expectedMap[g.name] ?? g.expected)}
-                      onlyFree={onlyFree}
-                      allFree={allFreeSet.has(g.name)}
-                      highlighted={selectedName === g.name}
-                      onSelect={() =>
-                        setSelectedName((cur) => (cur === g.name ? null : g.name))
-                      }
-                    />
-                  ))}
-                  {visibleGroups.length === 0 &&
-                    (onlyFree || onlyAllFree) && (
+              {(() => {
+                const activeEmpty =
+                  viewTab === "pinned" ? pinned.length === 0 : results.length === 0;
+                if (activeEmpty) {
+                  return (
+                    <div className="text-center py-16 text-ink-muted rounded border border-dashed border-border dark:border-darkborder">
+                      <i
+                        className={`text-5xl block mb-3 opacity-40 ${
+                          viewTab === "pinned" ? "ri-pushpin-line" : "ri-global-line"
+                        }`}
+                      />
+                      <p className="text-sm">
+                        {viewTab === "pinned"
+                          ? "Pinna i risultati che ti interessano per ritrovarli qui. Persistono tra i reload della pagina e nelle sessioni salvate."
+                          : "Inserisci un nome per verificare la disponibilità, oppure genera alternative con AI."}
+                      </p>
+                    </div>
+                  );
+                }
+                if (visibleGroups.length === 0 && (onlyFree || onlyAllFree)) {
+                  return (
                     <div className="text-center py-10 text-ink-muted text-sm">
                       <i className="ri-emotion-sad-line text-3xl block mb-2 opacity-50" />
                       {onlyAllFree
                         ? "Nessun nome con tutti i TLD liberi."
                         : "Nessun dominio libero trovato con i filtri attuali."}
                     </div>
-                  )}
-                </div>
-              )}
+                  );
+                }
+                return (
+                  <div className="grid gap-3">
+                    {visibleGroups.map((g) => (
+                      <NameResultGroup
+                        key={g.name}
+                        name={g.name}
+                        results={g.results}
+                        expected={expectedMap[g.name] ?? g.expected}
+                        busy={
+                          viewTab === "results"
+                            ? checking &&
+                              g.results.length < (expectedMap[g.name] ?? g.expected)
+                            : false
+                        }
+                        onlyFree={onlyFree}
+                        allFree={allFreeSet.has(g.name)}
+                        highlighted={selectedName === g.name}
+                        pinned={pinnedSet.has(g.name)}
+                        onTogglePin={() =>
+                          viewTab === "pinned" ? removePin(g.name) : togglePin(g)
+                        }
+                        onSelect={() =>
+                          setSelectedName((cur) => (cur === g.name ? null : g.name))
+                        }
+                      />
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
@@ -1225,7 +1703,7 @@ export default function Page() {
               </h2>
               {mode === "generate" && suggestions.length > 0 && (
                 <button
-                  onClick={onCheckSuggestions}
+                  onClick={() => onCheckSuggestions()}
                   disabled={checking}
                   className="h-8 px-3 rounded bg-success text-white text-sm font-medium hover:opacity-90 disabled:opacity-60 flex items-center gap-1 shrink-0"
                 >
@@ -1343,6 +1821,7 @@ export default function Page() {
               <ul className="flex flex-col gap-1.5">
                 {rightNames.map((n) => {
                   const isSelected = selectedName === n;
+                  const isPinned = pinnedSet.has(n);
                   return (
                     <li key={n}>
                       <button
@@ -1359,6 +1838,12 @@ export default function Page() {
                         <span className="flex items-center gap-1.5 min-w-0">
                           <i className="ri-arrow-right-line text-primary text-xs shrink-0" />
                           <span className="font-mono truncate">{n}</span>
+                          {isPinned && (
+                            <i
+                              className="ri-pushpin-fill text-accent shrink-0"
+                              title="Pinnato"
+                            />
+                          )}
                           {allFreeSet.has(n) && (
                             <i
                               className="ri-trophy-line text-success shrink-0"
