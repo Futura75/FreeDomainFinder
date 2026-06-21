@@ -1,5 +1,16 @@
 # FreeDomainFinder
 
+[![CI](https://github.com/Futura75/FreeDomainFinder/actions/workflows/ci.yml/badge.svg)](https://github.com/Futura75/FreeDomainFinder/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Futura75/FreeDomainFinder)](https://github.com/Futura75/FreeDomainFinder/releases)
+[![License](https://img.shields.io/github/license/Futura75/FreeDomainFinder)](./LICENSE)
+[![Next.js](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178c6)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38bdf8)](https://tailwindcss.com/)
+[![Made in Italy](https://img.shields.io/badge/Made_in-Italy-blue)](https://en.wikipedia.org/wiki/Italy)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](https://github.com/Futura75/FreeDomainFinder/pulls)
+[![Last commit](https://img.shields.io/github/last-commit/Futura75/FreeDomainFinder)](https://github.com/Futura75/FreeDomainFinder/commits/develop)
+[![Repo size](https://img.shields.io/github/repo-size/Futura75/FreeDomainFinder)](https://github.com/Futura75/FreeDomainFinder)
+
 A local-first web app to check domain name availability and generate brandable alternatives with AI.
 
 ## Stack
