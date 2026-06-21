@@ -34,6 +34,8 @@ import { useAiSession, type AiStatusResponse } from "@/lib/use-ai-session";
 import { usePinned } from "@/lib/use-pinned";
 import { useTheme } from "@/lib/use-theme";
 import { useViewControls } from "@/lib/use-view-controls";
+import { useRdap, type Rdap } from "@/lib/use-rdap";
+import { type RdapSummary } from "@/lib/rdap";
 
 /* ------------------------------- Chips ---------------------------------- */
 
@@ -224,6 +226,7 @@ function NameResultGroup({
   pinned,
   onSelect,
   onTogglePin,
+  onShowRdap,
 }: {
   name: string;
   results: ResultGroup["results"];
@@ -235,6 +238,7 @@ function NameResultGroup({
   pinned: boolean;
   onSelect: () => void;
   onTogglePin: () => void;
+  onShowRdap: (domain: string) => void;
 }) {
   const free = results.filter((r) => r.status === "free");
   const shown = (onlyFree ? free : results)
@@ -343,6 +347,18 @@ function NameResultGroup({
                       >
                         <i className="ri-external-link-line text-sm" />
                       </a>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onShowRdap(r.domain);
+                        }}
+                        className="text-ink-muted hover:text-primary"
+                        title={`Dettagli RDAP di ${r.domain}`}
+                        aria-label={`Dettagli RDAP di ${r.domain}`}
+                      >
+                        <i className="ri-file-list-3-line text-sm" />
+                      </button>
                     </span>
                   )}
                 </span>
@@ -355,6 +371,141 @@ function NameResultGroup({
             Nessun TLD libero per questo nome.
           </span>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------------- RDAP modal ------------------------------- */
+
+// Friendly Italian labels for the standard RDAP event actions.
+const RDAP_EVENT_LABELS: Record<string, string> = {
+  registration: "Registrato il",
+  expiration: "Scadenza",
+  reregistration: "Rinnovato il",
+  "last changed": "Ultima modifica",
+  "last update of RDAP database": "Aggiornamento RDAP",
+};
+
+function formatRdapDate(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString("it-IT");
+}
+
+function RdapField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <span className="block text-xs text-ink-muted">{label}</span>
+      <span className="font-medium break-all">{value}</span>
+    </div>
+  );
+}
+
+function RdapDetails({ summary, raw }: { summary: RdapSummary; raw: unknown }) {
+  return (
+    <>
+      <RdapField label="Registrar" value={summary.registrar ?? "—"} />
+      {summary.events.map((e) => (
+        <RdapField
+          key={`${e.action}-${e.date}`}
+          label={RDAP_EVENT_LABELS[e.action] ?? e.action}
+          value={formatRdapDate(e.date)}
+        />
+      ))}
+      <div>
+        <span className="block text-xs text-ink-muted">Stato</span>
+        {summary.statuses.length > 0 ? (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {summary.statuses.map((s) => (
+              <span
+                key={s}
+                className="px-2 py-0.5 rounded-sm text-xs font-mono bg-ink/10 text-ink dark:text-darkink"
+              >
+                {s}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <span className="font-medium">—</span>
+        )}
+      </div>
+      <RdapField
+        label="DNSSEC"
+        value={summary.dnssec == null ? "—" : summary.dnssec ? "Sì" : "No"}
+      />
+      <div>
+        <span className="block text-xs text-ink-muted">Nameserver</span>
+        {summary.nameservers.length > 0 ? (
+          <ul className="mt-1 font-mono text-xs space-y-0.5">
+            {summary.nameservers.map((n) => (
+              <li key={n} className="break-all">
+                {n}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <span className="font-medium">—</span>
+        )}
+      </div>
+      <details className="mt-1">
+        <summary className="cursor-pointer text-xs text-ink-muted hover:text-primary">
+          JSON grezzo
+        </summary>
+        <pre className="mt-2 p-2 rounded bg-background dark:bg-darkbg text-xs overflow-auto max-h-60">
+          {JSON.stringify(raw, null, 2)}
+        </pre>
+      </details>
+    </>
+  );
+}
+
+function RdapModal({ rdap }: { rdap: Rdap }) {
+  const { domain, loading, error, summary, raw, close } = rdap;
+
+  useEffect(() => {
+    if (!domain) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [domain, close]);
+
+  if (!domain) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 animate-fadeIn"
+      onClick={close}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Dettagli RDAP di ${domain}`}
+    >
+      <div
+        className="w-full max-w-lg max-h-[85vh] overflow-auto rounded-lg border border-border dark:border-darkborder bg-surface dark:bg-darksurface shadow-card dark:shadow-cardDark"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-3 p-4 border-b border-border dark:border-darkborder sticky top-0 bg-surface dark:bg-darksurface">
+          <h3 className="text-base font-semibold font-mono break-all flex items-center gap-2 min-w-0">
+            <i className="ri-file-list-3-line text-primary shrink-0" />
+            <span className="truncate">{domain}</span>
+          </h3>
+          <button
+            type="button"
+            onClick={close}
+            aria-label="Chiudi"
+            className="shrink-0 w-8 h-8 grid place-items-center rounded border border-border dark:border-darkborder text-ink-muted hover:border-danger hover:text-danger"
+          >
+            <i className="ri-close-line text-lg" />
+          </button>
+        </div>
+        <div className="p-4 text-sm space-y-3">
+          {loading && (
+            <p className="text-ink-muted animate-pulseSoft">Caricamento dati RDAP…</p>
+          )}
+          {error && <p className="text-danger">{error}</p>}
+          {summary && <RdapDetails summary={summary} raw={raw} />}
+        </div>
       </div>
     </div>
   );
@@ -507,6 +658,9 @@ export default function Page() {
     reset: resetAi,
     hydrate: hydrateAi,
   } = ai;
+
+  /* ---------- RDAP details modal (module) ---------- */
+  const rdap = useRdap();
 
   /* ---------- transient view state (not persisted in sessions) ---------- */
   const [selectedName, setSelectedName] = useState<string | null>(null);
@@ -1263,6 +1417,7 @@ export default function Page() {
                         onSelect={() =>
                           setSelectedName((cur) => (cur === g.name ? null : g.name))
                         }
+                        onShowRdap={rdap.open}
                       />
                     ))}
                   </div>
@@ -1463,6 +1618,8 @@ export default function Page() {
           <span>Uso locale · configurazione e sessioni salvate nel browser</span>
         </div>
       </footer>
+
+      <RdapModal rdap={rdap} />
     </div>
   );
 }
