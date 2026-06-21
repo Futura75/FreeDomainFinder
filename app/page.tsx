@@ -205,7 +205,22 @@ function NameResultGroup({
                   Acquista
                 </a>
               ) : (
-                <span className="text-xs">{meta.label}</span>
+                <span className="flex items-center gap-1.5 text-xs">
+                  {meta.label}
+                  {r.status === "taken" && (
+                    <a
+                      href={`https://${encodeURIComponent(r.domain)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-ink-muted hover:text-primary"
+                      title={`Apri ${r.domain} in una nuova tab`}
+                      aria-label={`Apri ${r.domain} in una nuova tab`}
+                    >
+                      <i className="ri-external-link-line text-sm" />
+                    </a>
+                  )}
+                </span>
               )}
             </div>
           );
