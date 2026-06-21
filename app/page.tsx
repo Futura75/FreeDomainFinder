@@ -698,6 +698,9 @@ export default function Page() {
     setSelectedName(null);
     setOnlyFree(false);
     setOnlyAllFree(false);
+    setSuggestions([]);
+    setHistory([]);
+    setShowHistory(false);
   };
 
   // Full reset: prompt, inputs, results, suggestions and AI history.

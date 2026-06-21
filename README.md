@@ -38,7 +38,7 @@ You can regenerate as many times as you want. Each previous round is archived in
 
 ### Starting over
 
-- **Nuova ricerca** (in the results header): clears results but keeps typed text (prompt/inputs) and AI history
+- **Nuova ricerca** (in the results header): clears results, AI suggestions and previous-rounds history, but keeps the typed text (prompt/inputs) so you don't retype it
 - **Azzera** (in the header): full reset — clears prompt, inputs, results, suggestions and AI history
 
 ## Domain extensions (TLDs)
