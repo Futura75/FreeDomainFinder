@@ -30,7 +30,7 @@ function NewSearchButton({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      title="Nuova ricerca: cancella risultati, alternative e storico (mantiene il testo)"
+      title="Nuova ricerca: cancella risultati, alternative, storico e pinned (mantiene il testo)"
       className="h-11 px-4 rounded border border-border dark:border-darkborder bg-surface dark:bg-darksurface text-sm font-medium text-ink dark:text-darkink hover:border-accent hover:text-accent transition-colors flex items-center gap-1.5"
     >
       <i className="ri-refresh-line" /> Nuova ricerca
@@ -792,6 +792,7 @@ export default function Page() {
     setSuggestions([]);
     setHistory([]);
     setShowHistory(false);
+    setPinned([]);
     setViewTab("results");
   };
 
@@ -1328,8 +1329,8 @@ export default function Page() {
                   <div className="text-center py-16 text-ink-muted rounded border border-dashed border-border dark:border-darkborder">
                     <i className="ri-pushpin-line text-5xl block mb-3 opacity-40" />
                     <p className="text-sm">
-                      Pinne i risultati che ti interessano per ritrovarli qui
-                      (sopravvivono alle nuove ricerche e persistono tra le sessioni).
+                      Pinna i risultati che ti interessano per ritrovarli qui.
+                      Persistono tra i reload della pagina e nelle sessioni salvate.
                     </p>
                   </div>
                 ) : (
