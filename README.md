@@ -1,7 +1,7 @@
 # FreeDomainFinder
 
 [![CI](https://github.com/Futura75/FreeDomainFinder/actions/workflows/ci.yml/badge.svg)](https://github.com/Futura75/FreeDomainFinder/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen)](https://github.com/Futura75/FreeDomainFinder/actions/workflows/ci.yml)
+[![Coverage Status](https://coveralls.io/repos/github/Futura75/FreeDomainFinder/badge.svg?branch=main)](https://coveralls.io/github/Futura75/FreeDomainFinder?branch=main)
 [![Release](https://img.shields.io/github/v/release/Futura75/FreeDomainFinder)](https://github.com/Futura75/FreeDomainFinder/releases)
 [![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![Next.js](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org/)

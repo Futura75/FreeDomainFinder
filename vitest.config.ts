@@ -18,7 +18,7 @@ export default defineConfig({
       provider: "v8",
       // Vitest 4's text reporter omits fully-covered files unless skipFull is
       // set on the reporter itself; keep every measured file in the table.
-      reporter: [["text", { skipFull: false }], "html", "json-summary"],
+      reporter: [["text", { skipFull: false }], "html", "json-summary", "lcov"],
       include: ["lib/**/*.ts", "lib/**/*.tsx", "app/api/**/route.ts"],
       exclude: ["**/*.test.*", "**/*.d.ts"],
       thresholds: {
