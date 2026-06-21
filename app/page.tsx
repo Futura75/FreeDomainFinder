@@ -328,16 +328,25 @@ interface ResultGroup {
 export default function Page() {
   /* ---------- theme ---------- */
   const [dark, setDark] = useState(false);
+  // On mount: restore saved preference, else follow the system setting live.
   useEffect(() => {
     const saved = localStorage.getItem("fdf-theme");
-    if (saved === "dark") setDark(true);
-    else if (saved === "light") setDark(false);
-    else if (
-      window.matchMedia &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches
-    )
+    if (saved === "dark") {
       setDark(true);
+      return;
+    }
+    if (saved === "light") {
+      setDark(false);
+      return;
+    }
+    // No manual preference yet: follow the system and keep following it.
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    setDark(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setDark(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
   }, []);
+  // Persist the user's explicit choice and apply the class.
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
     localStorage.setItem("fdf-theme", dark ? "dark" : "light");
