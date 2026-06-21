@@ -716,7 +716,8 @@ export default function Page() {
   const visibleGroups = useMemo(() => {
     const freeCount = (g: ResultGroup) =>
       g.results.filter((r) => r.status === "free").length;
-    const arr = [...results];
+    const source = viewTab === "pinned" ? pinned : results;
+    const arr = [...source];
     switch (sortKey) {
       case "alpha-asc":
         arr.sort((a, b) => a.name.localeCompare(b.name));
@@ -746,7 +747,7 @@ export default function Page() {
       return arr.filter((g) => freeCount(g) > 0);
     }
     return arr;
-  }, [results, sortKey, onlyFree, onlyAllFree, expectedMap]);
+  }, [results, pinned, viewTab, sortKey, onlyFree, onlyAllFree, expectedMap]);
 
   /* ---------- all-free map (for right-panel hints) ---------- */
   const allFreeSet = useMemo(() => {
@@ -1352,17 +1353,16 @@ export default function Page() {
                     </button>
                   </div>
                 </div>
-                {viewTab === "results" && results.length > 0 && (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <label className="inline-flex items-center gap-1.5 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={onlyFree}
-                        onChange={(e) => setOnlyFree(e.target.checked)}
-                        className="accent-primary"
-                      />
-                      Solo liberi
-                    </label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <label className="inline-flex items-center gap-1.5 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={onlyFree}
+                      onChange={(e) => setOnlyFree(e.target.checked)}
+                      className="accent-primary"
+                    />
+                    Solo liberi
+                  </label>
                     <label className="inline-flex items-center gap-1.5 text-sm">
                       <input
                         type="checkbox"
@@ -1389,7 +1389,6 @@ export default function Page() {
                       <option value="free-asc">Disponibilità (meno liberi prima)</option>
                     </select>
                   </div>
-                )}
                 <button
                   onClick={() => onRecheckAll(viewTab)}
                   disabled={checking || (viewTab === "results" ? results.length === 0 : pinned.length === 0)}
@@ -1404,79 +1403,64 @@ export default function Page() {
                 </button>
               </div>
 
-              {viewTab === "results" &&
-                (results.length === 0 ? (
-                <div className="text-center py-16 text-ink-muted rounded border border-dashed border-border dark:border-darkborder">
-                  <i className="ri-global-line text-5xl block mb-3 opacity-40" />
-                  <p className="text-sm">
-                    Inserisci un nome per verificare la disponibilità, oppure genera
-                    alternative con AI.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid gap-3">
-                  {visibleGroups.map((g) => (
-                    <NameResultGroup
-                      key={g.name}
-                      name={g.name}
-                      results={g.results}
-                      expected={expectedMap[g.name] ?? g.expected}
-                      busy={checking && g.results.length < (expectedMap[g.name] ?? g.expected)}
-                      onlyFree={onlyFree}
-                      allFree={allFreeSet.has(g.name)}
-                      highlighted={selectedName === g.name}
-                      pinned={pinnedSet.has(g.name)}
-                      onTogglePin={() => togglePin(g)}
-                      onSelect={() =>
-                        setSelectedName((cur) => (cur === g.name ? null : g.name))
-                      }
-                    />
-                  ))}
-                  {visibleGroups.length === 0 &&
-                    (onlyFree || onlyAllFree) && (
+              {(() => {
+                const activeEmpty =
+                  viewTab === "pinned" ? pinned.length === 0 : results.length === 0;
+                if (activeEmpty) {
+                  return (
+                    <div className="text-center py-16 text-ink-muted rounded border border-dashed border-border dark:border-darkborder">
+                      <i
+                        className={`text-5xl block mb-3 opacity-40 ${
+                          viewTab === "pinned" ? "ri-pushpin-line" : "ri-global-line"
+                        }`}
+                      />
+                      <p className="text-sm">
+                        {viewTab === "pinned"
+                          ? "Pinna i risultati che ti interessano per ritrovarli qui. Persistono tra i reload della pagina e nelle sessioni salvate."
+                          : "Inserisci un nome per verificare la disponibilità, oppure genera alternative con AI."}
+                      </p>
+                    </div>
+                  );
+                }
+                if (visibleGroups.length === 0 && (onlyFree || onlyAllFree)) {
+                  return (
                     <div className="text-center py-10 text-ink-muted text-sm">
                       <i className="ri-emotion-sad-line text-3xl block mb-2 opacity-50" />
                       {onlyAllFree
                         ? "Nessun nome con tutti i TLD liberi."
                         : "Nessun dominio libero trovato con i filtri attuali."}
                     </div>
-                  )}
-                </div>
-              ))}
-
-              {viewTab === "pinned" &&
-                (pinned.length === 0 ? (
-                  <div className="text-center py-16 text-ink-muted rounded border border-dashed border-border dark:border-darkborder">
-                    <i className="ri-pushpin-line text-5xl block mb-3 opacity-40" />
-                    <p className="text-sm">
-                      Pinna i risultati che ti interessano per ritrovarli qui.
-                      Persistono tra i reload della pagina e nelle sessioni salvate.
-                    </p>
-                  </div>
-                ) : (
+                  );
+                }
+                return (
                   <div className="grid gap-3">
-                    {pinned.map((g) => (
+                    {visibleGroups.map((g) => (
                       <NameResultGroup
                         key={g.name}
                         name={g.name}
                         results={g.results}
-                        expected={g.expected}
-                        busy={false}
-                        onlyFree={onlyFree}
-                        allFree={
-                          g.results.length >= g.expected &&
-                          g.results.every((r) => r.status === "free")
+                        expected={expectedMap[g.name] ?? g.expected}
+                        busy={
+                          viewTab === "results"
+                            ? checking &&
+                              g.results.length < (expectedMap[g.name] ?? g.expected)
+                            : false
                         }
+                        onlyFree={onlyFree}
+                        allFree={allFreeSet.has(g.name)}
                         highlighted={selectedName === g.name}
                         pinned={pinnedSet.has(g.name)}
-                        onTogglePin={() => removePin(g.name)}
+                        onTogglePin={() =>
+                          viewTab === "pinned" ? removePin(g.name) : togglePin(g)
+                        }
                         onSelect={() =>
                           setSelectedName((cur) => (cur === g.name ? null : g.name))
                         }
                       />
                     ))}
                   </div>
-                ))}
+                );
+              })()}
             </div>
           </div>
 
