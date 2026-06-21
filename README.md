@@ -15,13 +15,132 @@ A local-first web app to check domain name availability and generate brandable a
 ```bash
 npm install
 cp .env.local.example .env.local
-# add your GROQ_API_KEY (free at https://console.groq.com/keys)
+# edit .env.local and add at least one AI provider key (see below)
 npm run dev
 ```
 
 Open http://localhost:3000
 
 > Without any AI provider configured, direct verification still works; the "Genera con AI" tab is disabled with a setup hint.
+
+## AI providers
+
+The AI engine supports multiple providers. **Configure at least one** by setting its env var(s) in `.env.local`, then restart `npm run dev`. The app detects which are configured and shows only those in the UI (provider + model selectors). You can run several at once and switch between them from the UI.
+
+Optionally force the default provider with `AI_PROVIDER=<id>` (e.g. `AI_PROVIDER=groq`); otherwise the first configured one is used.
+
+Below is one clear example per provider. Replace the placeholder values with your own.
+
+### Groq — free, fast
+
+Get a key: https://console.groq.com/keys
+
+```env
+GROQ_API_KEY=gsk_your_key_here
+```
+
+Models offered: `llama-3.3-70b-versatile`, `llama-3.1-8b-instant`, `mixtral-8x7b-32768`. Default: `llama-3.3-70b-versatile`.
+
+### OpenAI
+
+Get a key: https://platform.openai.com/api-keys
+
+```env
+OPENAI_API_KEY=sk-your_key_here
+```
+
+Models offered: `gpt-4o-mini`, `gpt-4o`, `gpt-4.1-mini`. Default: `gpt-4o-mini`.
+
+### Anthropic
+
+Get a key: https://console.anthropic.com/settings/keys
+
+```env
+ANTHROPIC_API_KEY=sk-ant-your_key_here
+```
+
+Models offered: `claude-3-5-haiku-latest`, `claude-3-5-sonnet-latest`, `claude-3-7-sonnet-latest`. Default: `claude-3-5-haiku-latest`. Uses the Anthropic Messages API (`x-api-key` + `anthropic-version`).
+
+### OpenRouter — aggregator, free models available
+
+Get a key: https://openrouter.ai/keys
+
+```env
+OPENROUTER_API_KEY=sk-or-your_key_here
+```
+
+Models offered: `meta-llama/llama-3.3-70b-instruct:free`, `google/gemini-flash-1.5`, `anthropic/claude-3.5-haiku`, `openai/gpt-4o-mini`. Default: `meta-llama/llama-3.3-70b-instruct:free`.
+
+### OpenCode GO — self-hosted OpenAI-compatible endpoint
+
+For any OpenAI-compatible server you host yourself (e.g. an OpenCode GO gateway). **All three values are required.**
+
+```env
+OPENCODE_BASE_URL=https://your-endpoint.example.com/v1
+OPENCODE_API_KEY=your_key_or_token
+OPENCODE_MODEL=your-model-name
+```
+
+The model selector becomes a free-text field (since models are unknown to the app).
+
+### Together AI — free tier
+
+Get a key: https://api.together.xyz/settings/api-keys
+
+```env
+TOGETHER_API_KEY=your_key_here
+```
+
+Models offered: `meta-llama/Llama-3.3-70B-Instruct-Turbo-Free`, `meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo`. Default: `meta-llama/Llama-3.3-70B-Instruct-Turbo-Free`.
+
+### Mistral
+
+Get a key: https://console.mistral.ai/api-keys
+
+```env
+MISTRAL_API_KEY=your_key_here
+```
+
+Models offered: `mistral-small-latest`, `mistral-large-latest`, `open-mistral-nemo`. Default: `mistral-small-latest`.
+
+### xAI (Grok)
+
+Get a key: https://console.x.ai
+
+```env
+XAI_API_KEY=xai-your_key_here
+```
+
+Models offered: `grok-2-latest`, `grok-2-mini`. Default: `grok-2-latest`.
+
+### Ollama — local, no key
+
+Install Ollama (https://ollama.com), start the server, and pull a model once:
+
+```bash
+ollama pull llama3.1
+```
+
+Then in `.env.local` (all optional — defaults shown):
+
+```env
+OLLAMA_BASE_URL=http://localhost:11434/v1
+OLLAMA_MODEL=llama3.1
+```
+
+Models offered: `llama3.1`, `qwen2.5`, `mistral`. No API key needed.
+
+### Choosing the default provider
+
+```env
+AI_PROVIDER=groq
+```
+
+If omitted, the first configured provider (in the order listed above) is used. The UI selector overrides this per request.
+
+### Disabling the AI panel
+
+If no provider is configured (or the configuration is incomplete, e.g. OpenCode GO missing its base URL), the **"Genera con AI"** tab is disabled and a setup notice is shown in its place. Direct domain checking keeps working.
 
 ## Two modes
 
