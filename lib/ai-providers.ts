@@ -163,13 +163,14 @@ export const PROVIDERS: ProviderDef[] = [
     envKey: null,
     envBaseUrl: "OLLAMA_BASE_URL",
     envModel: "OLLAMA_MODEL",
+    requiresBaseUrl: true,
     defaultModel: "llama3.1",
     models: [
       { id: "llama3.1", label: "Llama 3.1" },
       { id: "qwen2.5", label: "Qwen 2.5" },
       { id: "mistral", label: "Mistral" },
     ],
-    freeTierNote: "Modello locale, nessuna chiave. Avvia Ollama e `ollama pull <model>`.",
+    freeTierNote: "Modello locale, nessuna chiave. Imposta OLLAMA_BASE_URL, avvia Ollama e `ollama pull <model>`.",
   },
 ];
 
