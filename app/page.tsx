@@ -756,8 +756,14 @@ export default function Page() {
       if (g.results.length >= exp && g.results.every((r) => r.status === "free"))
         s.add(g.name);
     }
+    // Include pinned names whose all checked TLDs are free.
+    for (const g of pinned) {
+      const exp = g.expected;
+      if (g.results.length >= exp && g.results.every((r) => r.status === "free"))
+        s.add(g.name);
+    }
     return s;
-  }, [results, expectedMap]);
+  }, [results, expectedMap, pinned]);
 
   const totalFree = useMemo(
     () =>
@@ -889,7 +895,9 @@ export default function Page() {
   };
 
   const onRecheckAll = () => {
-    const names = results.map((g) => g.name);
+    const names = Array.from(
+      new Set([...results.map((g) => g.name), ...pinned.map((g) => g.name)])
+    );
     if (names.length === 0) return;
     const tasks: CheckTask[] = [];
     for (const name of names) tasks.push(...buildTasksForName(name, null));
