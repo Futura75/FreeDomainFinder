@@ -775,8 +775,16 @@ export default function Page() {
 
   /* ---------- names list (right panel) ---------- */
   const rightNames = useMemo(
-    () => (mode === "generate" ? suggestions : results.map((g) => g.name)),
-    [mode, suggestions, results]
+    () =>
+      mode === "generate"
+        ? suggestions
+        : Array.from(
+            new Set([
+              ...results.map((g) => g.name),
+              ...pinned.map((g) => g.name),
+            ])
+          ),
+    [mode, suggestions, results, pinned]
   );
 
   /* ---------- session save / load ---------- */
@@ -1588,6 +1596,7 @@ export default function Page() {
               <ul className="flex flex-col gap-1.5">
                 {rightNames.map((n) => {
                   const isSelected = selectedName === n;
+                  const isPinned = pinnedSet.has(n);
                   return (
                     <li key={n}>
                       <button
@@ -1604,6 +1613,12 @@ export default function Page() {
                         <span className="flex items-center gap-1.5 min-w-0">
                           <i className="ri-arrow-right-line text-primary text-xs shrink-0" />
                           <span className="font-mono truncate">{n}</span>
+                          {isPinned && (
+                            <i
+                              className="ri-pushpin-fill text-accent shrink-0"
+                              title="Pinnato"
+                            />
+                          )}
                           {allFreeSet.has(n) && (
                             <i
                               className="ri-trophy-line text-success shrink-0"
