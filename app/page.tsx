@@ -208,17 +208,30 @@ function NameResultGroup({
                 <span className="flex items-center gap-1.5 text-xs">
                   {meta.label}
                   {r.status === "taken" && (
-                    <a
-                      href={`https://${encodeURIComponent(r.domain)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="text-ink-muted hover:text-primary"
-                      title={`Apri ${r.domain} in una nuova tab`}
-                      aria-label={`Apri ${r.domain} in una nuova tab`}
-                    >
-                      <i className="ri-external-link-line text-sm" />
-                    </a>
+                    <span className="flex items-center gap-1.5">
+                      <a
+                        href={`https://who.is/whois/${encodeURIComponent(r.domain)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-ink-muted hover:text-primary"
+                        title={`Cerca WHOIS di ${r.domain}`}
+                        aria-label={`Cerca WHOIS di ${r.domain}`}
+                      >
+                        <i className="ri-information-line text-sm" />
+                      </a>
+                      <a
+                        href={`https://${encodeURIComponent(r.domain)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-ink-muted hover:text-primary"
+                        title={`Apri ${r.domain} in una nuova tab`}
+                        aria-label={`Apri ${r.domain} in una nuova tab`}
+                      >
+                        <i className="ri-external-link-line text-sm" />
+                      </a>
+                    </span>
                   )}
                 </span>
               )}
