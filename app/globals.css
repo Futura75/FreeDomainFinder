@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg: #f4f5fa;
+  --color-surface: #ffffff;
+  --color-border: #dbdade;
+  --color-ink: #4b4a5c;
+  --color-ink-muted: #75717b;
+}
+
+.dark {
+  --color-bg: #25293c;
+  --color-surface: #2f3349;
+  --color-border: #3f4460;
+  --color-ink: #cfd3ec;
+  --color-ink-muted: #9aa0c4;
+}
+
+html,
+body {
+  background-color: var(--color-bg);
+  color: var(--color-ink);
+}
+
+body {
+  font-family: var(--font-public), "Public Sans", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+/* Focus ring */
+:focus-visible {
+  outline: 2px solid #1e6fcc;
+  outline-offset: 2px;
+}
+
+/* Thin scrollbar */
+* {
+  scrollbar-width: thin;
+}
