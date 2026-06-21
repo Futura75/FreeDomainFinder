@@ -894,10 +894,9 @@ export default function Page() {
     }
   };
 
-  const onRecheckAll = () => {
-    const names = Array.from(
-      new Set([...results.map((g) => g.name), ...pinned.map((g) => g.name)])
-    );
+  const onRecheckAll = (source: "results" | "pinned") => {
+    const base = source === "pinned" ? pinned : results;
+    const names = base.map((g) => g.name);
     if (names.length === 0) return;
     const tasks: CheckTask[] = [];
     for (const name of names) tasks.push(...buildTasksForName(name, null));
@@ -1389,16 +1388,20 @@ export default function Page() {
                       <option value="free-desc">Disponibilità (più liberi prima)</option>
                       <option value="free-asc">Disponibilità (meno liberi prima)</option>
                     </select>
-                    <button
-                      onClick={onRecheckAll}
-                      disabled={checking}
-                      className="h-9 px-3 rounded border border-border dark:border-darkborder hover:border-primary text-sm flex items-center gap-1.5 disabled:opacity-60"
-                      title="Ricontrolla tutti i nomi"
-                    >
-                      <i className="ri-restart-line" /> Ricontrolla
-                    </button>
                   </div>
                 )}
+                <button
+                  onClick={() => onRecheckAll(viewTab)}
+                  disabled={checking || (viewTab === "results" ? results.length === 0 : pinned.length === 0)}
+                  className="h-9 px-3 rounded border border-border dark:border-darkborder hover:border-primary text-sm flex items-center gap-1.5 disabled:opacity-60"
+                  title={
+                    viewTab === "pinned"
+                      ? "Ricontrolla tutti i nomi pinnati"
+                      : "Ricontrolla tutti i nomi"
+                  }
+                >
+                  <i className="ri-restart-line" /> Ricontrolla
+                </button>
               </div>
 
               {viewTab === "results" &&
