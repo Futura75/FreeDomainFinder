@@ -79,3 +79,15 @@ export function isValidSld(name: string): boolean {
   if (name.length > 63) return false;
   return /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(name);
 }
+
+/** Sanitize a raw name candidate produced by the AI or typed by a user:
+ * lowercase, strip leading dots, drop spaces, strip anything that's not
+ * [a-z0-9-]. Returns "" when the result is empty. */
+export function sanitizeSld(raw: string): string {
+  return String(raw)
+    .trim()
+    .toLowerCase()
+    .replace(/^\./, "")
+    .replace(/\s+/g, "")
+    .replace(/[^a-z0-9-]/g, "");
+}

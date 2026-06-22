@@ -1,8 +1,9 @@
 # FreeDomainFinder
 
 [![CI](https://github.com/Futura75/FreeDomainFinder/actions/workflows/ci.yml/badge.svg)](https://github.com/Futura75/FreeDomainFinder/actions/workflows/ci.yml)
+[![Coverage Status](https://coveralls.io/repos/github/Futura75/FreeDomainFinder/badge.svg?branch=main)](https://coveralls.io/github/Futura75/FreeDomainFinder?branch=main)
 [![Release](https://img.shields.io/github/v/release/Futura75/FreeDomainFinder)](https://github.com/Futura75/FreeDomainFinder/releases)
-[![License](https://img.shields.io/github/license/Futura75/FreeDomainFinder)](./LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 [![Next.js](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178c6)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38bdf8)](https://tailwindcss.com/)
@@ -16,7 +17,7 @@ A local-first web app to check domain name availability and generate brandable a
 ## Stack
 
 - **Next.js 14** (App Router) + **TypeScript** + **Tailwind CSS v3**
-- Design system: **WhistleGuard** (blue/teal palette, Public Sans + JetBrains Mono fonts, Remix Icons)
+- Design system: blue/teal palette, Public Sans + JetBrains Mono fonts, Remix Icons
 - Notifications: **SweetAlert2** (top-right toasts + completion popups, light/dark themed)
 - Availability check: **RDAP** (`rdap.org`) + **DNS-over-HTTPS** fallback (Cloudflare), client-side, no API keys
 - AI: multi-provider via server-side API route. Supported: **Groq**, **OpenAI**, **Anthropic**, **OpenRouter**, **OpenCode GO** (self-hosted OpenAI-compatible), **Together AI**, **Mistral**, **xAI (Grok)**, **Ollama** (local, no key). Keys live server-side in env; the client picks provider + model from the configured ones. The AI panel is disabled in the UI until at least one provider is correctly configured.
@@ -235,9 +236,16 @@ lib/
   check.ts                RDAP + DoH, bounded concurrency pool
   notify.ts               SweetAlert2 helpers (toast/popup/confirm), themed
   session.ts              session file types, validation, download/read
+  generate.ts             name-generation pipeline (prompt, parse, sanitize)
   ai-providers.ts         provider registry (metadata, models) — shared
   ai-server.ts            server helpers (env, resolve selection, call provider)
-tailwind.config.ts        WhistleGuard tokens + dark mode
+  use-tld-config.ts       TLD active/exclusions/used state + persistence
+  use-check-run.ts        check execution + name intake (sanitize/validate/dedupe)
+  use-ai-session.ts       prompt/count/suggestions/history + provider selection
+  use-pinned.ts           pinned results state + persistence
+  use-theme.ts            dark-mode precedence (saved choice vs system) + persistence
+  use-view-controls.ts    mode/input/sort/filter state + session serialize/hydrate
+tailwind.config.ts        design tokens + dark mode
 ```
 
 ## Git workflow

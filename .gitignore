@@ -7,6 +7,9 @@ out
 next-env.d.ts
 *.tsbuildinfo
 
+# test coverage
+coverage
+
 # env / secrets
 .env
 .env.local

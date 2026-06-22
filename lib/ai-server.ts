@@ -1,7 +1,7 @@
 // Server-only helpers: read env, resolve the active provider+model, call it.
 // Imported only by API route handlers (never by the client bundle).
 
-import { ProviderDef } from "./ai-providers";
+import { ProviderDef, PROVIDERS } from "./ai-providers";
 
 export interface ResolvedProvider {
   provider: ProviderDef;
@@ -36,21 +36,13 @@ export function isProviderConfigured(p: ProviderDef): boolean {
 }
 
 export function getConfiguredProviders(): ProviderStatus[] {
-  return getProviderList().map((p) => ({
+  return PROVIDERS.map((p) => ({
     id: p.id,
     label: p.label,
     configured: isProviderConfigured(p),
     models: p.models,
     defaultModel: resolveModel(p),
   }));
-}
-
-function getProviderList(): ProviderDef[] {
-  // Imported registry (re-exported to keep this file self-contained).
-  // We use the module-level PROVIDERS indirectly via getProvider + a list.
-  // Simplest: re-import the array.
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  return require("./ai-providers").PROVIDERS as ProviderDef[];
 }
 
 export function resolveModel(p: ProviderDef): string {
@@ -72,11 +64,9 @@ export function resolveSelection(
   providerId?: string,
   modelId?: string
 ): ResolvedProvider | null {
-  const list = getProviderList();
-
   // Explicit provider from the request.
   if (providerId) {
-    const p = list.find((x) => x.id === providerId);
+    const p = PROVIDERS.find((x) => x.id === providerId);
     if (p && isProviderConfigured(p)) {
       const model = (modelId && modelId.trim()) || resolveModel(p);
       if (!model) return null;
@@ -92,7 +82,7 @@ export function resolveSelection(
   // Env-chosen default provider.
   const envProvider = env("AI_PROVIDER");
   if (envProvider) {
-    const p = list.find((x) => x.id === envProvider);
+    const p = PROVIDERS.find((x) => x.id === envProvider);
     if (p && isProviderConfigured(p)) {
       const model = resolveModel(p);
       if (!model) return null;
@@ -106,7 +96,7 @@ export function resolveSelection(
   }
 
   // First configured provider.
-  const first = list.find((p) => isProviderConfigured(p));
+  const first = PROVIDERS.find((p) => isProviderConfigured(p));
   if (first) {
     const model = resolveModel(first);
     if (!model) return null;
@@ -193,6 +183,17 @@ export async function callProvider(
   });
   if (!res.ok) {
     const txt = await res.text();
+    // Some OpenAI-compatible servers (notably Groq) reject strict json_object
+    // mode with a 400 when the model's JSON is malformed or truncated, but
+    // still return the partial output in error.failed_generation. Hand that
+    // back so the tolerant parser upstream can salvage the names instead of
+    // failing the whole request.
+    try {
+      const failed = JSON.parse(txt)?.error?.failed_generation;
+      if (typeof failed === "string" && failed.trim()) return failed;
+    } catch {
+      /* body isn't JSON — fall through to the labelled error */
+    }
     throw new Error(`${provider.label} ${res.status}: ${txt.slice(0, 300)}`);
   }
   const data = await res.json();
