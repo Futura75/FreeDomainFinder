@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   free-domain-finder:
-    image: registry.motta107.duckdns.org/free-domain-finder:latest
+    image: ghcr.io/futura75/freedomainfinder:latest
     build:
       context: .
       dockerfile: Dockerfile
