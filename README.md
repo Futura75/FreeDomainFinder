@@ -259,3 +259,4 @@ This repo uses **git-flow**:
 
 - Built for local use. Deploying requires minimal refactoring (the API route already runs on Vercel).
 - Availability is indicative (RDAP + DNS). Always confirm with a registrar before purchasing.
+# Trigger CI: update deploy workflow
