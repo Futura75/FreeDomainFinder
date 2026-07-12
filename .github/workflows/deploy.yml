@@ -7,7 +7,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ghcr.io/Futura75/FreeDomainFinder
+  IMAGE_NAME: ghcr.io/futura75/freedomainfinder
 
 jobs:
   build:
