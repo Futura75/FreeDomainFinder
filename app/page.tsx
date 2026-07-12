@@ -1615,6 +1615,7 @@ export default function Page() {
       <footer className="border-t border-border dark:border-darkborder mt-10">
         <div className="w-full px-4 sm:px-6 lg:px-8 py-5 text-xs text-ink-muted flex flex-wrap items-center justify-between gap-2">
           <span>Verifica via RDAP + DNS-over-HTTPS · AI multi-provider</span>
+          <span>© {new Date().getFullYear()} Federico Barsotti</span>
           <span>Uso locale · configurazione e sessioni salvate nel browser</span>
         </div>
       </footer>
