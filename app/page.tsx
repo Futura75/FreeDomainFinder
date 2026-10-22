@@ -650,6 +650,8 @@ export default function Page() {
     currentProviderStatus,
     onSelectProvider,
     onSelectModel,
+    onRefreshModels,
+    refreshingModels,
     updateSuggestion,
     removeSuggestion,
     addSuggestion,
@@ -1191,17 +1193,36 @@ export default function Page() {
                       <span className="font-medium flex items-center gap-1.5">
                         <i className="ri-cpu-line text-primary" /> Provider
                       </span>
-                      <select
-                        value={aiProvider}
-                        onChange={(e) => onSelectProvider(e.target.value)}
-                        className="h-9 px-2 rounded border border-border dark:border-darkborder bg-background dark:bg-darkbg text-sm"
-                      >
-                        {configuredProviders.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.label}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="flex gap-2">
+                        <select
+                          value={aiProvider}
+                          onChange={(e) => onSelectProvider(e.target.value)}
+                          className="h-9 px-2 rounded border border-border dark:border-darkborder bg-background dark:bg-darkbg text-sm flex-1 min-w-0"
+                        >
+                          {configuredProviders.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.label}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => void onRefreshModels()}
+                          disabled={refreshingModels || !aiProvider}
+                          title="Rigenera la lista dei modelli esposti dal provider"
+                          aria-label="Rigenera la lista dei modelli esposti dal provider"
+                          className="h-9 w-9 shrink-0 flex items-center justify-center rounded border border-border dark:border-darkborder bg-surface dark:bg-darksurface text-ink-muted hover:border-accent hover:text-accent disabled:opacity-50 transition-colors"
+                        >
+                          <i
+                            className={
+                              refreshingModels
+                                ? "ri-loader-4-line animate-spin"
+                                : "ri-refresh-line"
+                            }
+                            aria-hidden="true"
+                          />
+                        </button>
+                      </div>
                     </label>
                     <label className="flex flex-col gap-1.5 text-sm">
                       <span className="font-medium flex items-center gap-1.5">

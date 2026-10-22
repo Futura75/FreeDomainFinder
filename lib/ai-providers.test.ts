@@ -57,7 +57,7 @@ describe("PROVIDERS registry", () => {
     const groq = getProvider("groq");
     const ids = groq?.models.map((m) => m.id);
     expect(ids).not.toContain("mixtral-8x7b-32768");
-    expect(ids).toContain("llama-3.3-70b-versatile");
+    expect(ids).toContain("openai/gpt-oss-120b");
   });
 
   it("getProvider returns undefined for unknown ids", () => {

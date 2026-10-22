@@ -24,7 +24,7 @@ describe("GET /api/ai/status", () => {
     const data = await res.json();
     expect(data.configured).toBe(true);
     expect(data.defaultProvider).toBe("groq");
-    expect(data.defaultModel).toBe("llama-3.3-70b-versatile");
+    expect(data.defaultModel).toBe("openai/gpt-oss-120b");
     const groq = data.providers.find((p: { id: string }) => p.id === "groq");
     expect(groq.configured).toBe(true);
   });

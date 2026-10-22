@@ -116,6 +116,89 @@ interface ChatMessage {
   content: string;
 }
 
+export interface LiveModel {
+  id: string;
+  label: string;
+}
+
+/** Substrings that mark non-chat models (audio, guardrails, embeddings…) so
+ * they don't pollute the model picker. Matched case-insensitively. */
+const NON_CHAT_HINTS = [
+  "whisper",
+  "tts",
+  "orpheus",
+  "speech",
+  "guard",
+  "embed",
+  "rerank",
+  "moderation",
+];
+
+export function isChatModel(id: string): boolean {
+  const lower = id.toLowerCase();
+  return !NON_CHAT_HINTS.some((hint) => lower.includes(hint));
+}
+
+/** Auth headers for a provider, shared by chat calls and model listing. */
+function authHeaders(p: ProviderDef, apiKey: string | null): Record<string, string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (p.apiShape === "anthropic-messages") {
+    headers["anthropic-version"] = "2023-06-01";
+    if (apiKey) headers["x-api-key"] = apiKey;
+  } else if (p.authScheme === "bearer" && apiKey) {
+    headers["Authorization"] = `Bearer ${apiKey}`;
+  } else if (p.authScheme === "x-api-key" && apiKey) {
+    headers["x-api-key"] = apiKey;
+  }
+  if (p.id === "openrouter") {
+    headers["HTTP-Referer"] = "http://localhost:3000";
+    headers["X-Title"] = "FreeDomainFinder";
+  }
+  return headers;
+}
+
+/**
+ * Ask a configured provider for the models it currently exposes.
+ * Uses GET {baseUrl}/models (OpenAI-compatible shape, also served by Ollama and
+ * Anthropic, the latter with the anthropic-version header and a high limit).
+ * Non-chat models are filtered out, ids deduped and sorted.
+ */
+export async function fetchProviderModels(p: ProviderDef): Promise<LiveModel[]> {
+  const baseUrl = resolveBaseUrl(p);
+  if (!baseUrl) throw new Error(`${p.label}: base URL mancante.`);
+  const apiKey = p.envKey ? env(p.envKey) ?? null : null;
+  // Anthropic paginates /v1/models with a small default limit; ask for the lot.
+  const url = `${baseUrl}/models${p.apiShape === "anthropic-messages" ? "?limit=1000" : ""}`;
+
+  const res = await fetch(url, {
+    method: "GET",
+    headers: authHeaders(p, apiKey),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`${p.label} ${res.status}: ${txt.slice(0, 300)}`);
+  }
+  const data = await res.json();
+  const rows: unknown = Array.isArray(data?.data)
+    ? data.data
+    : Array.isArray(data?.models)
+      ? data.models
+      : [];
+
+  const seen = new Set<string>();
+  const models: LiveModel[] = [];
+  for (const row of rows as { id?: unknown; display_name?: unknown; name?: unknown }[]) {
+    const id = typeof row?.id === "string" ? row.id : typeof row?.name === "string" ? row.name : "";
+    if (!id || seen.has(id) || !isChatModel(id)) continue;
+    seen.add(id);
+    const label =
+      (typeof row.display_name === "string" && row.display_name.trim()) || id;
+    models.push({ id, label });
+  }
+  return models.sort((a, b) => a.id.localeCompare(b.id));
+}
+
 /** Build the chat request for the provider's API shape and return the text content. */
 export async function callProvider(
   resolved: ResolvedProvider,
@@ -158,17 +241,7 @@ export async function callProvider(
   }
 
   // OpenAI-compatible chat completions.
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (provider.authScheme === "bearer" && apiKey) {
-    headers["Authorization"] = `Bearer ${apiKey}`;
-  } else if (provider.authScheme === "x-api-key" && apiKey) {
-    headers["x-api-key"] = apiKey;
-  }
-  // OpenRouter likes optional referer/title headers; harmless if absent.
-  if (provider.id === "openrouter") {
-    headers["HTTP-Referer"] = "http://localhost:3000";
-    headers["X-Title"] = "FreeDomainFinder";
-  }
+  const headers = authHeaders(provider, apiKey);
   const body: Record<string, unknown> = {
     model,
     temperature: opts.temperature,

@@ -33,12 +33,12 @@ describe("POST /api/generate", () => {
     vi.mocked(generateNames).mockResolvedValue({
       names: ["foo", "bar"],
       provider: "groq",
-      model: "llama-3.3-70b-versatile",
+      model: "openai/gpt-oss-120b",
     });
     const res = await POST(req({ prompt: "brief", count: 5 }));
     expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data).toEqual({ names: ["foo", "bar"], provider: "groq", model: "llama-3.3-70b-versatile" });
+    expect(data).toEqual({ names: ["foo", "bar"], provider: "groq", model: "openai/gpt-oss-120b" });
   });
 
   it("returns 400 on EmptyPromptError", async () => {

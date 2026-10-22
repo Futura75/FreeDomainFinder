@@ -39,11 +39,13 @@ export const PROVIDERS: ProviderDef[] = [
     apiShape: "openai-chat",
     authScheme: "bearer",
     envKey: "GROQ_API_KEY",
-    defaultModel: "llama-3.3-70b-versatile",
+    // Model ids churn often on Groq; override without a code change via GROQ_MODEL.
+    envModel: "GROQ_MODEL",
+    defaultModel: "openai/gpt-oss-120b",
     models: [
-      { id: "llama-3.3-70b-versatile", label: "Llama 3.3 70B" },
-      { id: "llama-3.1-8b-instant", label: "Llama 3.1 8B (fast)" },
-      { id: "llama-3.2-3b-preview", label: "Llama 3.2 3B (fast)" },
+      { id: "openai/gpt-oss-120b", label: "GPT-OSS 120B" },
+      { id: "openai/gpt-oss-20b", label: "GPT-OSS 20B (fast)" },
+      { id: "qwen/qwen3.8-27b", label: "Qwen3.8 27B" },
     ],
     freeTierNote: "Free tier generoso, ottima velocità.",
   },

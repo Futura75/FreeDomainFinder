@@ -38,6 +38,8 @@ export interface UseAiSessionOptions {
     provider: string;
     model: string;
   }) => Promise<{ names: string[]; provider: string; model: string }>;
+  /** Inject the live-model lister (for tests). */
+  fetchModels?: (providerId: string) => Promise<{ models: { id: string; label: string }[] }>;
   /** Inject notifications (for tests). */
   onWarn?: (message: string) => void;
   onError?: (message: string) => void;
@@ -88,6 +90,9 @@ export interface AiSession {
   currentProviderStatus: ProviderStatus | null;
   onSelectProvider: (id: string) => void;
   onSelectModel: (model: string) => void;
+  /** Re-read the model list exposed by the current provider (live fetch). */
+  onRefreshModels: () => Promise<void>;
+  refreshingModels: boolean;
   aiStatusLoaded: boolean;
   // Mutations.
   updateSuggestion: (i: number, value: string) => void;
@@ -108,6 +113,7 @@ export function useAiSession(options: UseAiSessionOptions = {}): AiSession {
     fetchStatus,
     storage,
     generate: generateFn,
+    fetchModels,
     onWarn,
     onError,
     onSuccess,
@@ -127,6 +133,7 @@ export function useAiSession(options: UseAiSessionOptions = {}): AiSession {
   const [aiProvider, setAiProvider] = useState<string>("");
   const [aiModel, setAiModel] = useState<string>("");
   const [aiStatusLoaded, setAiStatusLoaded] = useState(false);
+  const [refreshingModels, setRefreshingModels] = useState(false);
 
   // Restore persisted count.
   useEffect(() => {
@@ -264,6 +271,43 @@ export function useAiSession(options: UseAiSessionOptions = {}): AiSession {
     [storage]
   );
 
+  /** Re-read the provider's exposed models. Keeps the current model when it is
+   * still offered, otherwise falls back to the first one returned. */
+  const onRefreshModels = useCallback(async () => {
+    if (!aiProvider || refreshingModels) return;
+    setRefreshingModels(true);
+    try {
+      const result = await (fetchModels ?? defaultFetchModels)(aiProvider);
+      const models = Array.isArray(result?.models) ? result.models : [];
+      if (models.length === 0) throw new Error("Il provider non ha restituito modelli.");
+
+      setAiProviders((cur) => cur.map((p) => (p.id === aiProvider ? { ...p, models } : p)));
+
+      const nextModel = models.some((m) => m.id === aiModel) ? aiModel : models[0].id;
+      setAiModel(nextModel);
+      try {
+        storage?.setItem(MODEL_LS_KEY, nextModel);
+      } catch {
+        /* ignore */
+      }
+      const label = aiProviders.find((p) => p.id === aiProvider)?.label ?? aiProvider;
+      onSuccess?.(`${models.length} modelli aggiornati da ${label}.`);
+    } catch (e) {
+      onError?.((e as Error).message || "Impossibile aggiornare la lista dei modelli.");
+    } finally {
+      setRefreshingModels(false);
+    }
+  }, [
+    aiProvider,
+    aiModel,
+    aiProviders,
+    refreshingModels,
+    fetchModels,
+    storage,
+    onSuccess,
+    onError,
+  ]);
+
   const updateSuggestion = useCallback((i: number, value: string) => {
     setSuggestions((cur) => cur.map((s, idx) => (idx === i ? value : s)));
   }, []);
@@ -356,6 +400,8 @@ export function useAiSession(options: UseAiSessionOptions = {}): AiSession {
     currentProviderStatus,
     onSelectProvider,
     onSelectModel,
+    onRefreshModels,
+    refreshingModels,
     updateSuggestion,
     removeSuggestion,
     addSuggestion,
@@ -385,4 +431,17 @@ async function defaultFetchGenerate(args: {
     throw new Error(data?.error || "Errore generazione AI.");
   }
   return { names: data.names, provider: data.provider, model: data.model };
+}
+
+/** Default lister used when no `fetchModels` is injected: asks our API route,
+ * which in turn asks the provider. */
+async function defaultFetchModels(
+  providerId: string
+): Promise<{ models: { id: string; label: string }[] }> {
+  const res = await fetch(`/api/ai/models?provider=${encodeURIComponent(providerId)}`);
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data?.error || "Impossibile aggiornare la lista dei modelli.");
+  }
+  return { models: data.models ?? [] };
 }

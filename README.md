@@ -49,9 +49,11 @@ Get a key: https://console.groq.com/keys
 
 ```env
 GROQ_API_KEY=gsk_your_key_here
+# optional override if Groq retires a model id
+# GROQ_MODEL=openai/gpt-oss-120b
 ```
 
-Models offered: `llama-3.3-70b-versatile`, `llama-3.1-8b-instant`, `llama-3.2-3b-preview`. Default: `llama-3.3-70b-versatile`.
+Models offered: `openai/gpt-oss-120b`, `openai/gpt-oss-20b`, `qwen/qwen3.8-27b`. Default: `openai/gpt-oss-120b`. Groq retires model ids often — if you get a `model_not_found` 404, check `GET https://api.groq.com/openai/v1/models` and set `GROQ_MODEL`.
 
 ### OpenAI
 

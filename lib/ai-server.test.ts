@@ -5,6 +5,8 @@ import {
   resolveModel,
   callProvider,
   getConfiguredProviders,
+  fetchProviderModels,
+  isChatModel,
 } from "./ai-server";
 import { PROVIDERS } from "./ai-providers";
 
@@ -64,14 +66,14 @@ describe("resolveModel", () => {
     expect(resolveModel(PROVIDERS.find((p) => p.id === "ollama")!)).toBe("qwen2.5");
   });
   it("falls back to provider default", () => {
-    expect(resolveModel(PROVIDERS.find((p) => p.id === "groq")!)).toBe("llama-3.3-70b-versatile");
+    expect(resolveModel(PROVIDERS.find((p) => p.id === "groq")!)).toBe("openai/gpt-oss-120b");
   });
 });
 
 describe("resolveSelection", () => {
   it("returns null when nothing is configured", () => {
     expect(resolveSelection()).toBeNull();
-    expect(resolveSelection("groq", "llama-3.3-70b-versatile")).toBeNull();
+    expect(resolveSelection("groq", "openai/gpt-oss-120b")).toBeNull();
   });
 
   it("uses explicit provider/model from the request", () => {
@@ -250,5 +252,72 @@ describe("callProvider", () => {
       jsonMode: true,
     });
     expect(out).toBe('{"names":["x"]}');
+  });
+});
+
+describe("isChatModel", () => {
+  it("rejects audio/guard/embedding ids", () => {
+    expect(isChatModel("whisper-large-v3")).toBe(false);
+    expect(isChatModel("meta-llama/llama-prompt-guard-2-86m")).toBe(false);
+    expect(isChatModel("text-embedding-3-small")).toBe(false);
+  });
+  it("accepts chat ids", () => {
+    expect(isChatModel("openai/gpt-oss-120b")).toBe(true);
+    expect(isChatModel("qwen/qwen3.8-27b")).toBe(true);
+  });
+});
+
+describe("fetchProviderModels", () => {
+  it("lists, dedupes, filters and sorts the provider's models", async () => {
+    setEnv({ GROQ_API_KEY: "gsk_x" });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: [
+            { id: "zeta-1" },
+            { id: "whisper-large-v3" },
+            { id: "alpha-2" },
+            { id: "zeta-1" },
+          ],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      )
+    );
+    const models = await fetchProviderModels(PROVIDERS.find((p) => p.id === "groq")!);
+    expect(models.map((m) => m.id)).toEqual(["alpha-2", "zeta-1"]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.groq.com/openai/v1/models",
+      expect.objectContaining({ method: "GET" })
+    );
+    expect(fetchMock.mock.calls[0][1]?.headers).toMatchObject({
+      Authorization: "Bearer gsk_x",
+    });
+  });
+
+  it("uses the anthropic-version header and a high limit for Anthropic", async () => {
+    setEnv({ ANTHROPIC_API_KEY: "sk-ant-x" });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({ data: [{ id: "claude-3-5-haiku-latest", display_name: "Claude 3.5 Haiku" }] }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      )
+    );
+    const models = await fetchProviderModels(PROVIDERS.find((p) => p.id === "anthropic")!);
+    expect(models).toEqual([{ id: "claude-3-5-haiku-latest", label: "Claude 3.5 Haiku" }]);
+    expect(fetchMock.mock.calls[0][0]).toBe("https://api.anthropic.com/v1/models?limit=1000");
+    expect(fetchMock.mock.calls[0][1]?.headers).toMatchObject({
+      "x-api-key": "sk-ant-x",
+      "anthropic-version": "2023-06-01",
+    });
+  });
+
+  it("throws a labelled error on a non-ok response", async () => {
+    setEnv({ GROQ_API_KEY: "gsk_x" });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("nope", { status: 403 })
+    );
+    await expect(
+      fetchProviderModels(PROVIDERS.find((p) => p.id === "groq")!)
+    ).rejects.toThrow(/Groq 403/);
   });
 });

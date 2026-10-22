@@ -29,8 +29,8 @@ const groqConfigured: ProviderStatus = {
   id: "groq",
   label: "Groq",
   configured: true,
-  models: [{ id: "llama-3.3-70b-versatile", label: "Llama 3.3 70B" }],
-  defaultModel: "llama-3.3-70b-versatile",
+  models: [{ id: "openai/gpt-oss-120b", label: "GPT-OSS 120B" }],
+  defaultModel: "openai/gpt-oss-120b",
 };
 const openaiConfigured: ProviderStatus = {
   id: "openai",
@@ -214,7 +214,7 @@ describe("useAiSession", () => {
       configured: true,
       providers: [groqConfigured, openaiNotConfigured],
       defaultProvider: "groq",
-      defaultModel: "llama-3.3-70b-versatile",
+      defaultModel: "openai/gpt-oss-120b",
       hint: null,
     }));
     const { result } = renderHook(() => useAiSession({ storage, fetchStatus }));
@@ -222,7 +222,7 @@ describe("useAiSession", () => {
     expect(result.current.aiConfigured).toBe(true);
     expect(result.current.configuredProviders.map((p) => p.id)).toEqual(["groq"]);
     expect(result.current.aiProvider).toBe("groq");
-    expect(result.current.aiModel).toBe("llama-3.3-70b-versatile");
+    expect(result.current.aiModel).toBe("openai/gpt-oss-120b");
   });
 
   it("fetchStatus failure flips aiConfigured to false with a hint", async () => {
@@ -240,7 +240,7 @@ describe("useAiSession", () => {
       configured: true,
       providers: [groqConfigured, openaiConfigured],
       defaultProvider: "groq",
-      defaultModel: "llama-3.3-70b-versatile",
+      defaultModel: "openai/gpt-oss-120b",
       hint: null,
     }));
     const { result } = renderHook(() => useAiSession({ storage, fetchStatus }));
@@ -259,18 +259,96 @@ describe("useAiSession", () => {
     expect(storage.getItem(MODEL_LS_KEY)).toBe("custom-model");
   });
 
+  it("onRefreshModels replaces the model list, keeps a still-offered model", async () => {
+    const fetchStatus = vi.fn(async () => ({
+      configured: true,
+      providers: [groqConfigured],
+      defaultProvider: "groq",
+      defaultModel: "openai/gpt-oss-120b",
+      hint: null,
+    }));
+    const fetchModels = vi.fn(async () => ({
+      models: [
+        { id: "openai/gpt-oss-120b", label: "GPT-OSS 120B" },
+        { id: "qwen/qwen3.8-27b", label: "Qwen3.8 27B" },
+      ],
+    }));
+    const onSuccess = vi.fn();
+    const { result } = renderHook(() =>
+      useAiSession({ storage, fetchStatus, fetchModels, onSuccess })
+    );
+    await waitFor(() => expect(result.current.aiStatusLoaded).toBe(true));
+    await act(async () => {
+      await result.current.onRefreshModels();
+    });
+    expect(fetchModels).toHaveBeenCalledWith("groq");
+    expect(result.current.currentProviderStatus?.models.map((m) => m.id)).toEqual([
+      "openai/gpt-oss-120b",
+      "qwen/qwen3.8-27b",
+    ]);
+    expect(result.current.aiModel).toBe("openai/gpt-oss-120b");
+    expect(result.current.refreshingModels).toBe(false);
+    expect(onSuccess).toHaveBeenCalledWith(expect.stringContaining("2 modelli"));
+  });
+
+  it("onRefreshModels falls back to the first model when the current one is gone", async () => {
+    const fetchStatus = vi.fn(async () => ({
+      configured: true,
+      providers: [groqConfigured],
+      defaultProvider: "groq",
+      defaultModel: "openai/gpt-oss-120b",
+      hint: null,
+    }));
+    const fetchModels = vi.fn(async () => ({
+      models: [{ id: "new-model", label: "New Model" }],
+    }));
+    const { result } = renderHook(() => useAiSession({ storage, fetchStatus, fetchModels }));
+    await waitFor(() => expect(result.current.aiStatusLoaded).toBe(true));
+    await act(async () => {
+      await result.current.onRefreshModels();
+    });
+    expect(result.current.aiModel).toBe("new-model");
+    expect(storage.getItem(MODEL_LS_KEY)).toBe("new-model");
+  });
+
+  it("onRefreshModels surfaces the error and keeps the old list", async () => {
+    const fetchStatus = vi.fn(async () => ({
+      configured: true,
+      providers: [groqConfigured],
+      defaultProvider: "groq",
+      defaultModel: "openai/gpt-oss-120b",
+      hint: null,
+    }));
+    const fetchModels = vi.fn(async () => {
+      throw new Error("Groq 404: model_not_found");
+    });
+    const onError = vi.fn();
+    const { result } = renderHook(() =>
+      useAiSession({ storage, fetchStatus, fetchModels, onError })
+    );
+    await waitFor(() => expect(result.current.aiStatusLoaded).toBe(true));
+    await act(async () => {
+      await result.current.onRefreshModels();
+    });
+    expect(onError).toHaveBeenCalledWith("Groq 404: model_not_found");
+    expect(result.current.currentProviderStatus?.models.map((m) => m.id)).toEqual([
+      "openai/gpt-oss-120b",
+    ]);
+    expect(result.current.refreshingModels).toBe(false);
+  });
+
   it("sync effect resets provider/model when the saved provider is no longer configured", async () => {
     const fetchStatus = vi.fn(async () => ({
       configured: true,
       providers: [groqConfigured],
       defaultProvider: "groq",
-      defaultModel: "llama-3.3-70b-versatile",
+      defaultModel: "openai/gpt-oss-120b",
       hint: null,
     }));
     storage.setItem(PROVIDER_LS_KEY, "openai"); // not configured anymore
     const { result } = renderHook(() => useAiSession({ storage, fetchStatus }));
     await waitFor(() => expect(result.current.aiProvider).toBe("groq"));
-    expect(result.current.aiModel).toBe("llama-3.3-70b-versatile");
+    expect(result.current.aiModel).toBe("openai/gpt-oss-120b");
   });
 
   it("clearRoundState keeps prompt/count, drops suggestions+history", () => {

@@ -115,7 +115,7 @@ describe("generateNames", () => {
     const r = await generateNames({ prompt: "brief", count: 5 });
     expect(r.names).toEqual(["alpha", "beta-2", "badone"]);
     expect(r.provider).toBe("groq");
-    expect(r.model).toBe("llama-3.3-70b-versatile");
+    expect(r.model).toBe("openai/gpt-oss-120b");
     expect(fetchMock).toHaveBeenCalled();
   });
 
