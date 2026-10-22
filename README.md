@@ -35,6 +35,19 @@ Open http://localhost:3000
 
 > Without any AI provider configured, direct verification still works; the "Genera con AI" tab is disabled with a setup hint.
 
+### Docker / self-hosting
+
+The repo ships a multi-stage `Dockerfile` (Next.js `output: "standalone"`, non-root user, healthcheck on `/api/ai/status`) and a `docker-compose.yml` that runs the published image `ghcr.io/futura75/freedomainfinder:latest` on the external `proxy` network. Provider keys are **not** baked into the image: they are passed as environment variables at runtime (and `.env*` is excluded from the build context).
+
+Pushing to `develop` triggers `.github/workflows/deploy.yml`, which builds and pushes that image to GHCR; the homelab pulls it through Komodo. To run it by hand:
+
+```bash
+GROQ_API_KEY=gsk_... docker compose up -d
+docker compose logs -f
+```
+
+The app listens on container port `3000` and is reached through the reverse proxy on the `proxy` network — no host port is published. `AI_PROVIDER` selects the default provider when several keys are set.
+
 ## AI providers
 
 The AI engine supports multiple providers. **Configure at least one** by setting its env var(s) in `.env.local`, then restart `npm run dev`. The app detects which are configured and shows only those in the UI (provider + model selectors). You can run several at once and switch between them from the UI.

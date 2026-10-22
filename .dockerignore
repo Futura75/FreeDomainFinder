@@ -2,7 +2,15 @@ node_modules
 .next
 .git
 .gitignore
+.github
 *.md
 coverage
 .vscode
 .idea
+# never ship secrets into the build context (the builder stage runs `COPY . .`)
+.env
+.env.*
+!.env.local.example
+Dockerfile
+docker-compose.yml
+.dockerignore
