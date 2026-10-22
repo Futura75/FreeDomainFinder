@@ -7,8 +7,24 @@ on:
     branches: [main, develop]
 
 jobs:
+  secrets:
+    # Blocks the build if any credential is committed, in the diff or anywhere
+    # in history. The repo is public: a leaked key is a leaked key forever.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # full history: a secret can hide in old commits
+
+      - name: Scan history for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # .gitleaks.toml is auto-detected at the repo root
+
   build:
     runs-on: ubuntu-latest
+    needs: secrets
 
     steps:
       - uses: actions/checkout@v5

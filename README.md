@@ -169,6 +169,39 @@ If omitted, the first configured provider (in the order listed above) is used. T
 
 If no provider is configured (or the configuration is incomplete, e.g. OpenCode GO missing its base URL), the **"Genera con AI"** tab is disabled and a setup notice is shown in its place. Direct domain checking keeps working.
 
+## Secrets
+
+**This repository is public: no credential may ever be committed.** Provider keys are only read from the process environment at runtime.
+
+| Where the secret lives | What goes there |
+|---|---|
+| `.env.local` (local dev) | provider keys; gitignored, dockerignored |
+| Komodo stack environment (homelab) | `GROQ_API_KEY` (marked as secret) — `docker-compose.yml` reads `${GROQ_API_KEY:?...}` and refuses to start without it |
+| GitHub Actions secret `GHCR_TOKEN` | registry push in `deploy.yml` |
+| GitHub Actions secrets | nothing else: the CI needs no AI keys, the image carries no credentials |
+
+CI/CD never sees a provider key: `deploy.yml` builds the image, the homelab supplies the environment at run time.
+
+Guardrails in place:
+
+- `.gitignore` ignores `.env` and `.env.*` (only `.env.local.example` with placeholders is tracked).
+- `.dockerignore` keeps `.env*` out of the build context, so a local `docker build` cannot bake a key into a layer.
+- `.github/workflows/ci.yml` runs **gitleaks over the whole history** (full checkout); the `build` job does not even start if a secret is found. Rules and dummy-value allowlist live in `.gitleaks.toml`.
+- GitHub secret scanning and push protection are enabled on the repo.
+
+Scan locally with the same rules:
+
+```bash
+docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:latest \
+  detect --source=/repo --config=/repo/.gitleaks.toml --redact -v
+```
+
+### If a key does leak
+
+1. **Revoke it first** at the provider (e.g. https://console.groq.com/keys) — assume it is compromised the moment it is pushed; history rewrites do not undo forks, caches or scrapers.
+2. Issue a new key and update every consumer: local `.env.local` and the Komodo stack environment.
+3. Only then clean the history (`git filter-repo --path .env.local --invert-paths`) and force-push — this rewrites shared hashes, so coordinate with everyone who has a clone.
+
 ## Two modes
 
 1. **Direct check** — two input styles:

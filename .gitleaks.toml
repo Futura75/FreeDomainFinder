@@ -1,0 +1,19 @@
+# gitleaks configuration — https://github.com/gitleaks/gitleaks
+# Extends the default ruleset and only silences the deliberate dummy values
+# used by the docs and the test suite.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Placeholders and test fixtures, never real credentials"
+regexes = [
+  '''gsk_your_key_here''',
+  '''gsk_x''',
+  '''sk-your_key_here''',
+  '''sk_x''',
+  '''sk-ant-your_key_here''',
+  '''sk-ant-x''',
+  '''dummy-build-time-key''',
+  '''your-endpoint\.example\.com''',
+]

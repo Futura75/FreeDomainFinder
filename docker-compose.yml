@@ -10,12 +10,15 @@ services:
     networks:
       - proxy
     environment:
-      - NODE_ENV=production
-      - GROQ_API_KEY=${GROQ_API_KEY}
+      NODE_ENV: production
+      # Fail fast instead of booting without AI when the key is missing.
+      # The value comes from the Komodo stack environment (marked secret),
+      # never from a file committed to this public repo.
+      GROQ_API_KEY: "${GROQ_API_KEY:?GROQ_API_KEY non impostata: configurala come secret nello stack Komodo}"
       # Optional AI providers (uncomment as needed)
-      # - OPENAI_API_KEY=${OPENAI_API_KEY}
-      # - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      # - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      # OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      # ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      # OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-}"
     labels:
       - "komodo.skip=false"
 
